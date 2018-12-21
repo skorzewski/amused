@@ -4,7 +4,6 @@
 import csv
 import os
 import requests
-import sys
 
 
 class Emotions(object):
@@ -111,17 +110,19 @@ class Emotions(object):
                             ( 0.0,  0.0,  0.0,  1.0),
             'cieszenie się na coś oczekiwanego':
                             ( 0.0,  0.0,  0.0, -1.0),
+            '':             ( 0.0,  0.0,  0.0,  0.0),
+            'NULL':         ( 0.0,  0.0,  0.0,  0.0),
         }[emotion_name]
 
     @staticmethod
     def search_online(lexeme):
-        """Return emotion analysis results
-        as a 4-tuple of coordinates in emotion space:
-        (+joy/-sadness, +trust/-disgust, +fear/-terror, +surprise/-anticipation)
+        """Return emotion analysis results as a 4-tuple of coordinates
+        in emotion space: (+joy/-sadness, +trust/-disgust, +fear/-terror,
+        +surprise/-anticipation)
 
         Relevant curl command:
-            curl --header "Content-Type: application/json" --request POST --data
-            '{"task": "all", "tool": "plwordnet", "lexeme": "$lexeme"}'
+            curl --header "Content-Type: application/json" --request POST
+            --data '{"task": "all", "tool": "plwordnet", "lexeme": "$lexeme"}'
             http://ws.clarin-pl.eu/lexrest/lex | jq
             '.results.synsets[].units[].emotion_names[]' | sort | uniq -c
         """
@@ -143,9 +144,9 @@ class Emotions(object):
 
     def search_offline(self, lexeme):
         """Get emotions offline"""
-        result = self._dict[lexeme].values()
-        print(result)
-        return result
+        if lexeme in self._dict:
+            return self._dict[lexeme].values()
+        return []
 
     def get_coords(self, lexeme, online=False):
         """Get emotions offline or online"""
@@ -161,16 +162,21 @@ class Emotions(object):
                 for emotion in emotion_list])
             for emotion_list in emotions])
 
-    def get_coords_from_text(self, text):
-        """Return the aggregated emotions from given text"""
-        # TODO: needs lemmatization
-        return Emotions.aggregate(coords(token) for token in text.split())
+    def get_coords_from_text(self, lexemes, online=False):
+        """Return the aggregated emotions from given text.
+        The input text should be in lemmatized form,
+        as a list of lexemes.
+        """
+        return Emotions.aggregate(self.get_coords(token, online=online)
+                                  for token in lexemes)
 
 
 if __name__ == '__main__':
+    import sys
+
     if len(sys.argv) <= 1:
         print('Usage: python3 ./emotions.py <LEXEME>')
     else:
         emotions = Emotions()
-        emotion_coords = emotions.get_coords(sys.argv[1], online=True)
+        emotion_coords = emotions.get_coords(sys.argv[1])
         print(emotion_coords, Emotions.coords_to_name(emotion_coords))

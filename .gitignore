@@ -1,4 +1,6 @@
 *~
 *.pyc
 *.sw?
-plwordnet_*
+/plwordnet_*
+/morfeusz/
+/sgjp/
