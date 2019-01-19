@@ -111,6 +111,7 @@ class Emotions(object):
             'cieszenie się na coś oczekiwanego':
                             ( 0.0,  0.0,  0.0, -1.0),
             '':             ( 0.0,  0.0,  0.0,  0.0),
+            '-':            ( 0.0,  0.0,  0.0,  0.0),
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
         }[emotion_name]
 
