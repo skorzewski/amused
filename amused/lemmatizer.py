@@ -22,7 +22,9 @@ class SGJPLemmatizer(object):
             self._lemmas = {}
             self._morphs = {}
             for i, row in enumerate(reader):
-                self._lemmas.setdefault(row['form'], []).append(row['lemma'])
+                lemma = row['lemma']
+                lemma = lemma.split(':')[0] if lemma else None
+                self._lemmas.setdefault(row['form'], []).append(lemma)
                 self._morphs.setdefault(row['form'], []).append(row['morph'])
                 if i % 200000 == 0:
                     print('.', end='', flush=True)
