@@ -39,7 +39,7 @@ class BNDReader(object):
 
 def fit_model_on_dialogs(bnd):
     """Process parsed dialogs"""
-    emotions = Emotions()
+    emotions = Emotions(aggregation_function=np.max)
     vocabulary = set()
     max_length = 0
     lemmatized_utterances = []
