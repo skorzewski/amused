@@ -47,18 +47,21 @@ def fit_model_on_dialogs(bnd):
     reader = BNDReader(bnd)
     for par in reader.pars():
         lemmas = []
+        postags = []
         manner = []
         for row in par:
             if row['dip'] == 'utt':
                 lemmas.append(row['lemma'])
             elif row['dip'] == 'manner':
                 manner.append(row['lemma'])
+                postags.append(row['pos'])
         if lemmas and manner:
             if len(lemmas) > max_length:
                 max_length = len(lemmas)
             vocabulary.update(lemmas)
             lemmatized_utterances.append(lemmas)
-            emotion_coords.append(emotions.get_coords_from_text(manner))
+            emotion_coords.append(
+                emotions.get_coords_from_text(manner, postags=postags))
 
     vocab_size = len(vocabulary)
     encoded_utterances = [one_hot(' '.join(lemmas), vocab_size)

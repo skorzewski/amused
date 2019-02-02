@@ -17,6 +17,7 @@ class Emotions(object):
         """
         self.aggregation_function = aggregation_function
         self._dict = {}
+        self._dict2 = {}
         dir_name = os.path.dirname(__file__)
         data_file_name = os.path.join(dir_name, 'plwordnet-emo/emo-dict.csv')
         self._from_csv(data_file_name)
@@ -27,6 +28,9 @@ class Emotions(object):
             reader = csv.DictReader(csvfile)
             for row in reader:
                 self._dict.setdefault(row['lemat'], {})[row['wariant']] = (
+                    row['emocje'].split(';'))
+                self._dict2.setdefault(
+                    (row['lemat'], row['czesc_mowy']), {})[row['wariant']] = (
                     row['emocje'].split(';'))
 
     @staticmethod
@@ -119,8 +123,32 @@ class Emotions(object):
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
         }[emotion_name]
 
+
+    def convert_postag(self, postag):
+        return {
+            'adj': 'przymiotnik',
+            'adja': 'przymiotnik',
+            'adjc': 'przymiotnik',
+            'adjp': 'przymiotnik',
+            'adv': 'przyslowek',
+            'bedzie': 'czasownik',
+            'burk': 'rzeczownik',
+            'fin': 'czasownik',
+            'ger': 'czasownik',
+            'imps': 'czasownik',
+            'impt': 'czasownik',
+            'inf': 'czasownik',
+            'pact': 'czasownik',
+            'pant': 'czasownik',
+            'pcon': 'czasownik',
+            'ppas': 'czasownik',
+            'praet': 'czasownik',
+            'subst': 'rzeczownik',
+        }.get(postag, None)
+
+
     @staticmethod
-    def search_online(lexeme):
+    def search_online(lexeme, postag=None):
         """Return emotion analysis results as a 4-tuple of coordinates
         in emotion space: (+joy/-sadness, +trust/-disgust, +fear/-terror,
         +surprise/-anticipation)
@@ -147,18 +175,22 @@ class Emotions(object):
                 for synset in response['results']['synsets']
                 for unit in synset['units']]
 
-    def search_offline(self, lexeme):
+    def search_offline(self, lexeme, postag=None):
         """Get emotions offline"""
         if lexeme in self._dict:
+            if postag:
+                postag = self.convert_postag(postag)
+                return self._dict2.get((lexeme, postag),
+                                       self._dict[lexeme]).values()
             return self._dict[lexeme].values()
         return []
 
-    def get_coords(self, lexeme, online=False):
+    def get_coords(self, lexeme, postag=None, online=False):
         """Get emotions offline or online"""
         if online:
-            emotions = Emotions.search_online(lexeme)
+            emotions = Emotions.search_online(lexeme, postag=postag)
         else:
-            emotions = self.search_offline(lexeme)
+            emotions = self.search_offline(lexeme, postag=postag)
         if not emotions:
             return (0.0, 0.0, 0.0, 0.0)
         return self.aggregate([
@@ -167,13 +199,19 @@ class Emotions(object):
                 for emotion in emotion_list])
             for emotion_list in emotions])
 
-    def get_coords_from_text(self, lexemes, online=False):
+    def get_coords_from_text(self, lexemes, postags=None, online=False):
         """Return the aggregated emotions from given text.
         The input text should be in lemmatized form,
         as a list of lexemes.
+        If an additional argument `postags` is given,
+        emotions are calculated using given POS-tag information.
         """
-        return self.aggregate(self.get_coords(token, online=online)
-                              for token in lexemes)
+        if postags:
+            return self.aggregate(self.get_coords(token, postag=postag, online=online)
+                                  for token, postag in zip(lexemes, postags))
+        else:
+            return self.aggregate(self.get_coords(token, online=online)
+                                  for token in lexemes)
 
 
 if __name__ == '__main__':
