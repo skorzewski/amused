@@ -86,11 +86,11 @@ class Emotions(object):
                 4: 'distraction',
             }[value]
         else:
-            return 'none'
+            return 'neutral'
 
     @staticmethod
     def aggregate(coords_list):
-        """Aggregate alist of emotion coords"""
+        """Aggregate a list of emotion coords"""
         if coords_list:
             return tuple([sum(coord_list) / len(coord_list)
                           for coord_list in zip(*coords_list)])
