@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import csv
+import numpy as np
 import os
 import requests
 
@@ -9,8 +10,12 @@ import requests
 class Emotions(object):
     """Emotion analysing class"""
 
-    def __init__(self):
-        """Constructor"""
+    def __init__(self, aggregation_function=np.mean):
+        """Constructor.
+        Parameter: aggregation_function - function that operates on list,
+        for aggregating emotion coordinates
+        """
+        self.aggregation_function = aggregation_function
         self._dict = {}
         dir_name = os.path.dirname(__file__)
         data_file_name = os.path.join(dir_name, 'plwordnet-emo/emo-dict.csv')
@@ -88,11 +93,10 @@ class Emotions(object):
         else:
             return 'neutral'
 
-    @staticmethod
-    def aggregate(coords_list):
+    def aggregate(self, coords_list):
         """Aggregate a list of emotion coords"""
         if coords_list:
-            return tuple([sum(coord_list) / len(coord_list)
+            return tuple([self.aggregation_function(coord_list)
                           for coord_list in zip(*coords_list)])
         return (0.0, 0.0, 0.0, 0.0)
 
@@ -157,8 +161,8 @@ class Emotions(object):
             emotions = self.search_offline(lexeme)
         if not emotions:
             return (0.0, 0.0, 0.0, 0.0)
-        return Emotions.aggregate([
-            Emotions.aggregate([
+        return self.aggregate([
+            self.aggregate([
                 list(Emotions.name_to_coords(emotion))
                 for emotion in emotion_list])
             for emotion_list in emotions])
@@ -168,8 +172,8 @@ class Emotions(object):
         The input text should be in lemmatized form,
         as a list of lexemes.
         """
-        return Emotions.aggregate(self.get_coords(token, online=online)
-                                  for token in lexemes)
+        return self.aggregate(self.get_coords(token, online=online)
+                              for token in lexemes)
 
 
 if __name__ == '__main__':
