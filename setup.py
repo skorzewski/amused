@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='amused',
-    version='0.3.0',
+    version='0.4.0',
     zip_safe=False,
     packages=['amused'],
     url='',

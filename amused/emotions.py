@@ -2,9 +2,17 @@
 # -*- coding: utf-8 -*-
 
 import csv
-import numpy as np
 import os
+
+import numpy as np
 import requests
+from keras.layers import Dense, Embedding, Flatten
+from keras.models import Sequential
+from keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.text import one_hot
+from sklearn.model_selection import train_test_split
+
+from amused.bnd_reader import BNDReader
 
 
 class Emotions(object):
@@ -71,7 +79,7 @@ class Emotions(object):
                     (2, 3): 'submission',
                     (2, 4): 'curiosity',
                     (3, 4): 'awe',
-                }[(value, value2)]
+                }[values]
             else:
                 return {
                     -4: 'anticipation',
@@ -102,7 +110,7 @@ class Emotions(object):
         if coords_list:
             return tuple([self.aggregation_function(coord_list)
                           for coord_list in zip(*coords_list)])
-        return (0.0, 0.0, 0.0, 0.0)
+        return 0.0, 0.0, 0.0, 0.0
 
     @staticmethod
     def name_to_coords(emotion_name):
@@ -123,8 +131,8 @@ class Emotions(object):
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
         }[emotion_name]
 
-
-    def convert_postag(self, postag):
+    @staticmethod
+    def convert_postag(postag):
         return {
             'adj': 'przymiotnik',
             'adja': 'przymiotnik',
@@ -146,9 +154,8 @@ class Emotions(object):
             'subst': 'rzeczownik',
         }.get(postag, None)
 
-
     @staticmethod
-    def search_online(lexeme, postag=None):
+    def search_online(lexeme):
         """Return emotion analysis results as a 4-tuple of coordinates
         in emotion space: (+joy/-sadness, +trust/-disgust, +fear/-terror,
         +surprise/-anticipation)
@@ -179,7 +186,7 @@ class Emotions(object):
         """Get emotions offline"""
         if lexeme in self._dict:
             if postag:
-                postag = self.convert_postag(postag)
+                postag = Emotions.convert_postag(postag)
                 return self._dict2.get((lexeme, postag),
                                        self._dict[lexeme]).values()
             return self._dict[lexeme].values()
@@ -188,11 +195,11 @@ class Emotions(object):
     def get_coords(self, lexeme, postag=None, online=False):
         """Get emotions offline or online"""
         if online:
-            emotions = Emotions.search_online(lexeme, postag=postag)
+            emotions = Emotions.search_online(lexeme)
         else:
             emotions = self.search_offline(lexeme, postag=postag)
         if not emotions:
-            return (0.0, 0.0, 0.0, 0.0)
+            return 0.0, 0.0, 0.0, 0.0
         return self.aggregate([
             self.aggregate([
                 list(Emotions.name_to_coords(emotion))
@@ -212,6 +219,82 @@ class Emotions(object):
         else:
             return self.aggregate(self.get_coords(token, online=online)
                                   for token in lexemes)
+
+
+class EmotionsModel(object):
+    """Model of emotions trained on a corpus of unannotated dialogs"""
+
+    def __init__(self, bnd_file_name, verbose=False):
+        """Constructor.
+        Parameters:
+            bnd_file_name – corpus file in BND format
+            verbose – verbosity (True/False)
+        """
+        self.vocabulary = set()
+        self.vocab_size = 0
+        self.max_length = 0
+        self.verbose = verbose
+        self._fit_model_on_dialogs(bnd_file_name)
+
+    def _fit_model_on_dialogs(self, bnd):
+        """Process parsed dialogs"""
+        emotions = Emotions(aggregation_function=np.max)
+        lemmatized_utterances = []
+        emotion_coords = []
+        reader = BNDReader(bnd)
+        for par in reader.pars():
+            lemmas = []
+            postags = []
+            manner = []
+            for row in par:
+                if row['dip'] == 'utt':
+                    lemmas.append(row['lemma'])
+                elif row['dip'] == 'manner':
+                    manner.append(row['lemma'])
+                    postags.append(row['pos'])
+            if lemmas and manner:
+                if len(lemmas) > self.max_length:
+                    self.max_length = len(lemmas)
+                self.vocabulary.update(lemmas)
+                lemmatized_utterances.append(lemmas)
+                emotion_coords.append(
+                    emotions.get_coords_from_text(manner, postags=postags))
+
+        self.vocab_size = len(self.vocabulary)
+        encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
+                              for lemmas in lemmatized_utterances]
+        padded_utterances = pad_sequences(encoded_utterances, maxlen=self.max_length, padding='post')
+
+        X = padded_utterances
+        y = np.array(emotion_coords)
+
+        embedding_dim = 100
+
+        if self.verbose:
+            print('Vocabulary size:', self.vocab_size)
+            print('Embedding dimension:', embedding_dim)
+            print('Max. sentence length:', self.max_length)
+
+        self.model = Sequential()
+        self.model.add(Embedding(self.vocab_size, embedding_dim, input_length=self.max_length))
+        self.model.add(Flatten())
+        self.model.add(Dense(4, activation='sigmoid'))
+
+        if self.verbose:
+            print(self.model.summary())
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+
+        self.model.compile(optimizer='adam',
+                           loss='binary_crossentropy',
+                           metrics=['accuracy'])
+        self.model.fit(X_train, y_train, epochs=1)
+
+    def get_coords_from_text(self, text):
+        """Predict emotions on text from trained model"""
+        preprocessed_text = [one_hot(text, self.vocab_size)]
+        padded_text = pad_sequences(preprocessed_text, maxlen=self.max_length, padding='post')
+        return tuple(self.model.predict(padded_text)[0].tolist())
 
 
 if __name__ == '__main__':
