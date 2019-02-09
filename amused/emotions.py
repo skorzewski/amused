@@ -241,24 +241,24 @@ class EmotionsModel(object):
         emotions = Emotions(aggregation_function=np.max)
         lemmatized_utterances = []
         emotion_coords = []
-        reader = BNDReader(bnd)
-        for par in reader.pars():
-            lemmas = []
-            postags = []
-            manner = []
-            for row in par:
-                if row['dip'] == 'utt':
-                    lemmas.append(row['lemma'])
-                elif row['dip'] == 'manner':
-                    manner.append(row['lemma'])
-                    postags.append(row['pos'])
-            if lemmas and manner:
-                if len(lemmas) > self.max_length:
-                    self.max_length = len(lemmas)
-                self.vocabulary.update(lemmas)
-                lemmatized_utterances.append(lemmas)
-                emotion_coords.append(
-                    emotions.get_coords_from_text(manner, postags=postags))
+        with BNDReader(bnd) as reader:
+            for par in reader:
+                lemmas = []
+                postags = []
+                manner = []
+                for row in par:
+                    if row['dip'] == 'utt':
+                        lemmas.append(row['lemma'])
+                    elif row['dip'] == 'manner':
+                        manner.append(row['lemma'])
+                        postags.append(row['pos'])
+                if lemmas and manner:
+                    if len(lemmas) > self.max_length:
+                        self.max_length = len(lemmas)
+                    self.vocabulary.update(lemmas)
+                    lemmatized_utterances.append(lemmas)
+                    emotion_coords.append(
+                        emotions.get_coords_from_text(manner, postags=postags))
 
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
@@ -271,6 +271,7 @@ class EmotionsModel(object):
         embedding_dim = 100
 
         if self.verbose:
+            print('Data shape:', X.shape)
             print('Vocabulary size:', self.vocab_size)
             print('Embedding dimension:', embedding_dim)
             print('Max. sentence length:', self.max_length)
@@ -288,7 +289,7 @@ class EmotionsModel(object):
         self.model.compile(optimizer='adam',
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
-        self.model.fit(X_train, y_train, epochs=1)
+        self.model.fit(X_train, y_train, epochs=10)
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
@@ -303,6 +304,6 @@ if __name__ == '__main__':
     if len(sys.argv) <= 1:
         print('Usage: python3 ./emotions.py <LEXEME>')
     else:
-        emotions = Emotions()
-        emotion_coords = emotions.get_coords(sys.argv[1])
-        print(emotion_coords, Emotions.coords_to_name(emotion_coords))
+        my_emotions = Emotions()
+        my_emotion_coords = my_emotions.get_coords(sys.argv[1])
+        print(my_emotion_coords, Emotions.coords_to_name(my_emotion_coords))

@@ -5,28 +5,30 @@
 class BNDReader(object):
     """Reader class for BND file"""
 
-    def __init__(self, filename):
+    def __init__(self, file_name):
         """Constructor.
         Parameter: filename – a path to BND file
         """
-        self._pars = []
-        with open(filename, 'r') as f:
-            for i, line in enumerate(f.read().splitlines()):
-                if i == 0:
-                    self.fieldnames = line.strip('# ').split()
-                    current_par = []
-                elif not line:
-                    self._pars.append(current_par)
-                    current_par = []
-                else:
-                    current_par.append(dict(zip(self.fieldnames,
-                                                line.split('\t'))))
+        self._file = open(file_name, 'r')
+        first_line = next(self._file)
+        self.fieldnames = first_line.strip('# ').split()
 
-    def pars(self):
-        """Return paragraphs list"""
-        return self._pars
+    def __enter__(self):
+        return self
 
-    def rows(self):
-        """Return rows iterator"""
-        return (row for par in self._pars for row in par)
+    def __iter__(self):
+        return self
 
+    def __next__(self):
+        paragraph = []
+        while True:
+            line = next(self._file).strip()
+            if not line:
+                break
+            paragraph.append(dict(zip(self.fieldnames,
+                                      line.split('\t'))))
+        return paragraph
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Close file"""
+        self._file.close()

@@ -101,7 +101,7 @@ def predict(model, params, text):
 
 
 if __name__ == '__main__':
-    emotion_model, model_params = fit_model_on_dialogs('corpora/wl-lalka.bnd')
+    emotion_model, model_params = fit_model_on_dialogs('corpora/wl-201902029-all.bnd')
 
     sample_text = 'Ale z niego wariat!'
 
