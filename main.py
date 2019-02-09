@@ -10,7 +10,10 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print('Usage: python3 ./main.py "<TEXT1>" "<TEXT2>" ...')
     else:
-        model = EmotionsModel('corpora/wl-20190209-all.bnd', verbose=True)
+        model = EmotionsModel('corpora/wl-20190209-all.bnd',
+                              verbose=True,
+                              train_on='reporting clauses',
+                              epochs=1)
         for text in sys.argv[1:]:
             # tokens = text.split()
             # lemmatizer = SGJPLemmatizer()

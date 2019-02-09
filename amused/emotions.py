@@ -224,7 +224,7 @@ class Emotions(object):
 class EmotionsModel(object):
     """Model of emotions trained on a corpus of unannotated dialogs"""
 
-    def __init__(self, bnd_file_name, verbose=False):
+    def __init__(self, bnd_file_name, verbose=False, train_on='manners', epochs=10):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
@@ -234,13 +234,18 @@ class EmotionsModel(object):
         self.vocab_size = 0
         self.max_length = 0
         self.verbose = verbose
-        self._fit_model_on_dialogs(bnd_file_name)
+        self.emotions = Emotions(aggregation_function=np.max)
+        self.lemmatized_utterances = []
+        self.emotion_coords = []
+        if train_on == 'manners':
+            self._gather_data_from_manners(bnd_file_name)
+        elif train_on == 'reporting clauses':
+            self._gather_data_from_reporting_clauses(bnd_file_name)
+        else:
+            raise Exception('You can train on *manners* or *reporting clauses* only')
+        self._train(epochs=epochs)
 
-    def _fit_model_on_dialogs(self, bnd):
-        """Process parsed dialogs"""
-        emotions = Emotions(aggregation_function=np.max)
-        lemmatized_utterances = []
-        emotion_coords = []
+    def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
             for par in reader:
                 lemmas = []
@@ -256,17 +261,40 @@ class EmotionsModel(object):
                     if len(lemmas) > self.max_length:
                         self.max_length = len(lemmas)
                     self.vocabulary.update(lemmas)
-                    lemmatized_utterances.append(lemmas)
-                    emotion_coords.append(
-                        emotions.get_coords_from_text(manner, postags=postags))
+                    self.lemmatized_utterances.append(lemmas)
+                    self.emotion_coords.append(
+                        self.emotions.get_coords_from_text(manner, postags=postags))
 
+    def _gather_data_from_reporting_clauses(self, bnd):
+        with BNDReader(bnd) as reader:
+            for par in reader:
+                lemmas = []
+                postags = []
+                rc = []
+                for row in par:
+                    if row['dip'] == 'utt':
+                        lemmas.append(row['lemma'])
+                    elif row['dip'] != 'utt':
+                        rc.append(row['lemma'])
+                        postags.append(row['pos'])
+                if lemmas and rc:
+                    if len(lemmas) > self.max_length:
+                        self.max_length = len(lemmas)
+                    self.vocabulary.update(lemmas)
+                    self.lemmatized_utterances.append(lemmas)
+                    self.emotion_coords.append(
+                        self.emotions.get_coords_from_text(rc, postags=postags))
+        pass
+
+    def _train(self, epochs=10):
+        """Process parsed dialogs"""
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
-                              for lemmas in lemmatized_utterances]
+                              for lemmas in self.lemmatized_utterances]
         padded_utterances = pad_sequences(encoded_utterances, maxlen=self.max_length, padding='post')
 
         X = padded_utterances
-        y = np.array(emotion_coords)
+        y = np.array(self.emotion_coords)
 
         embedding_dim = 100
 
@@ -289,7 +317,7 @@ class EmotionsModel(object):
         self.model.compile(optimizer='adam',
                            loss='binary_crossentropy',
                            metrics=['accuracy'])
-        self.model.fit(X_train, y_train, epochs=10)
+        self.model.fit(X_train, y_train, epochs=epochs)
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
