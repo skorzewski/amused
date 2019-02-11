@@ -239,10 +239,10 @@ class EmotionsModel(object):
         self.emotion_coords = []
         if train_on == 'manners':
             self._gather_data_from_manners(bnd_file_name)
-        elif train_on == 'reporting clauses':
+        elif train_on == 'reporting_clauses':
             self._gather_data_from_reporting_clauses(bnd_file_name)
         else:
-            raise Exception('You can train on *manners* or *reporting clauses* only')
+            raise Exception('You can train on *manners* or *reporting_clauses* only')
         self._train(epochs=epochs)
 
     def _gather_data_from_manners(self, bnd):
