@@ -42,6 +42,29 @@ class Emotions(object):
                     row['emocje'].split(';'))
 
     @staticmethod
+    def coords_to_basic_name(coords):
+        """Return emotion name (one of 8 basic emotions)
+        for a given emotion coordinates
+        """
+        indices = sorted(range(4), key=lambda i: abs(coords[i]), reverse=True)
+        value = indices[0] + 1
+        if coords[indices[0]] < 0:
+            value = -value
+        if abs(coords[indices[0]]) > 0.1:
+            return {
+                -4: 'anticipation',
+                -3: 'anger',
+                -2: 'disgust',
+                -1: 'sadness',
+                1: 'joy',
+                2: 'trust',
+                3: 'fear',
+                4: 'surprise',
+            }[value]
+        return 'neutral'
+
+
+    @staticmethod
     def coords_to_name(coords):
         """Return emotion name for a given emotion coordinates"""
         indices = sorted(range(4), key=lambda i: abs(coords[i]), reverse=True)
@@ -105,11 +128,10 @@ class Emotions(object):
         else:
             return 'neutral'
 
+
     @staticmethod
-    def coords_to_localized_name(coords, lang='en'):
-        """Return emotion name for a given emotion coordinates
-        in given language
-        """
+    def _localize_name(self, name, lang='en'):
+        """Return localized version of a given emotion name"""
         dictionary = {
             'pl': {
                 'serenity': 'błogość',
@@ -163,7 +185,23 @@ class Emotions(object):
                 'neutral': 'neutralność',
             }
         }
-        return dictionary[lang][Emotions.coords_to_name(coords)]
+        return dictionary[lang][name]
+
+    @staticmethod
+    def coords_to_basic_localized_name(coords, lang='en'):
+        """Return emotion name for a given emotion coordinates
+        in given language
+        """
+        return Emotions._localize_name(
+            Emotions.coords_to_basic_name(coords), lang)
+
+    @staticmethod
+    def coords_to_localized_name(coords, lang='en'):
+        """Return emotion name for a given emotion coordinates
+        in given language
+        """
+        return Emotions._localize_name(
+            Emotions.coords_to_name(coords), lang)
 
     def aggregate(self, coords_list):
         """Aggregate a list of emotion coords"""
