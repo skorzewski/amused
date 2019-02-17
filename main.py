@@ -26,4 +26,4 @@ if __name__ == '__main__':
             print('"{}"\n\t{}\t{}'.format(
                 text,
                 emotion_coords,
-                Emotions.coords_to_name(emotion_coords)))
+                Emotions.coords_to_localized_name(emotion_coords, lang='pl')))

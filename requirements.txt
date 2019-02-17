@@ -1,4 +1,5 @@
 keras
 numpy
 requests
+sacred
 sklearn

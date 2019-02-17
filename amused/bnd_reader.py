@@ -5,11 +5,14 @@
 class BNDReader(object):
     """Reader class for BND file"""
 
-    def __init__(self, file_name):
+    def __init__(self, file):
         """Constructor.
-        Parameter: filename – a path to BND file
+        Parameter: file – a BND file or a path to it
         """
-        self._file = open(file_name, 'r')
+        try:
+            self._file = open(file, 'r')
+        except TypeError:
+            self._file = file
         first_line = next(self._file)
         self.fieldnames = first_line.strip('# ').split()
 
@@ -31,4 +34,7 @@ class BNDReader(object):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Close file"""
-        self._file.close()
+        try:
+            self._file.close()
+        except TypeError:
+            pass

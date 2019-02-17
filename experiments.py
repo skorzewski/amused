@@ -1,13 +1,10 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# from amused.emotions import Emotions
-from nltk import word_tokenize
 from sacred import Experiment
 
 from amused.bnd_reader import BNDReader
 from amused.emotions import EmotionsModel, Emotions
-from amused.lemmatizer import SGJPLemmatizer
 
 ex = Experiment()
 

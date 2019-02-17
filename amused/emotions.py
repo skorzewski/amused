@@ -72,7 +72,7 @@ class Emotions(object):
                     (-2, 4): 'unbelief',
                     (-1, 2): 'sentimentality',
                     (-1, 3): 'despair',
-                    (-1, 4): 'disapproval',
+                    (-1, 4): 'disappointment',
                     (1, 2): 'love',
                     (1, 3): 'guilt',
                     (1, 4): 'delight',
@@ -104,6 +104,66 @@ class Emotions(object):
             }[value]
         else:
             return 'neutral'
+
+    @staticmethod
+    def coords_to_localized_name(coords, lang='en'):
+        """Return emotion name for a given emotion coordinates
+        in given language
+        """
+        dictionary = {
+            'pl': {
+                'serenity': 'błogość',
+                'joy': 'radość',
+                'ecstasy': 'ekstaza',
+                'pensiveness': 'zaduma',
+                'sadness': 'smutek',
+                'grief': 'cierpienie',
+                'acceptance': 'akceptacja',
+                'trust': 'zaufanie',
+                'admiration': 'podziw',
+                'boredom': 'znudzenie',
+                'disgust': 'wstręt',
+                'loathing': 'nienawiść',
+                'apprehension': 'obawa',
+                'fear': 'strach',
+                'terror': 'przerażenie',
+                'annoyance': 'irytacja',
+                'anger': 'gniew',
+                'rage': 'wściekłość',
+                'distraction': 'roztargnienie',
+                'surprise': 'zaskoczenie',
+                'amazement': 'zdumienie',
+                'interest': 'ciekawość',
+                'anticipation': 'przeczuwanie',
+                'vigilance': 'czujność',
+                'optimism': 'optymizm',
+                'hope': 'nadzieja',
+                'anxiety': 'lęk',
+                'love': 'miłość',
+                'guilt': 'poczucie winy',
+                'delight': 'zachwyt',
+                'submission': 'uległość',
+                'curiosity': 'ciekawość',
+                'sentimentality': 'sentymentalizm',
+                'awe': 'poruszenie',
+                'despair': 'rozpacz',
+                'shame': 'wstyd',
+                'disappointment': 'rozczarowanie',
+                'unbelief': 'szok',
+                'outrage': 'oburzenie',
+                'remorse': 'żal',
+                'envy': 'zazdrość',
+                'pessimism': 'pesymizm',
+                'contempt': 'pogarda',
+                'cynicism': 'cynizm',
+                'morbidness': 'makabryczność',
+                'aggressiveness': 'agresja',
+                'pride': 'duma',
+                'dominance': 'dominacja',
+                'neutral': 'neutralność',
+            }
+        }
+        return dictionary[lang][Emotions.coords_to_name(coords)]
 
     def aggregate(self, coords_list):
         """Aggregate a list of emotion coords"""
