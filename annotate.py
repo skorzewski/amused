@@ -5,8 +5,6 @@
 import argparse
 import sys
 
-from amused.emotions import Emotions
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
