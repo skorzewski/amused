@@ -1,6 +1,12 @@
 *~
+*.idea
 *.pyc
 *.sw?
+amused.egg-info/
+build/
+experiment_results/
 /plwordnet_*
 /morfeusz/
-/sgjp/
+amused/sgjp/
+dist/
+sgjp/
