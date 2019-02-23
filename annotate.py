@@ -4,7 +4,11 @@
 
 import argparse
 import random
+import re
 import sys
+
+
+RE_OTHER = re.compile(r'[^GLNORSUWZ]')
 
 
 def parse_arguments():
@@ -28,25 +32,30 @@ def parse_arguments():
 
 
 def main(infile, outfile):
-    for utt in infile:
-        print('Która emocja z poniższych najlepiej opisuje zdanie:')
+    utterances = infile.readlines()
+    total = len(utterances)
+    for i, utt in enumerate(utterances):
+        progress = i * 20 // total
+        progress_bar = progress * '#' + (20 - progress) * ' '
+        print('[{}] Zdanie {} z {}:'.format(progress_bar, i + 1, total))
         print()
-        print(utt)
+        print('"{}"'.format(utt.strip()))
         print()
+        print('Która z poniższych emocji opisuje powyższe zdanie? Wybierz jedną lub więcej i zatwierdź klawiszem ENTER:')
         print('R – Radość   U – Ufność   L – Lęk     Z – Zaskoczenie')
         print('S – Smutek   W – Wstręt   G – Gniew   O – Oczekiwanie')
         print('N – wypowiedź jest Neutralna')
         print()
-        letter = input().lower()
-        print('{}\t{}'.format(letter.upper(), utt), file=outfile)
+        letters = ''.join(sorted(c for c in RE_OTHER.sub('', input().upper())))
+        print('{}\t{}'.format(letters, utt), file=outfile)
         print()
 
 
 if __name__ == '__main__':
     args = parse_arguments()
     if not args.outfile:
-        outfile_id = random.randint(0, 1000)
-        outfile_name = '{}.{:03}.tsv'.format(args.infile.name, outfile_id)
+        outfile_id = random.randint(0, 10000)
+        outfile_name = '{}.{:04}.tsv'.format(args.infile.name, outfile_id)
         with open(outfile_name, 'w') as outfile:
             main(args.infile, outfile)
     else:
