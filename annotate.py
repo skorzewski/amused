@@ -3,6 +3,7 @@
 
 
 import argparse
+import random
 import sys
 
 
@@ -20,7 +21,7 @@ def parse_arguments():
         'outfile',
         nargs='?',
         type=argparse.FileType('w'),
-        default=sys.stdout,
+        default=None,
         help='Output TSV file',
     )
     return parser.parse_args()
@@ -43,4 +44,10 @@ def main(infile, outfile):
 
 if __name__ == '__main__':
     args = parse_arguments()
-    main(args.infile, args.outfile)
+    if not args.outfile:
+        outfile_id = random.randint(0, 1000)
+        outfile_name = '{}.{:03}.tsv'.format(args.infile.name, outfile_id)
+        with open(outfile_name, 'w') as outfile:
+            main(args.infile, outfile)
+    else:
+        main(args.infile, args.outfile)
