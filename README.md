@@ -8,9 +8,9 @@ MIT
 
 You can help creating gold standard corpus by annotating batches of selected sentences with provied script `annotate.py`:
 ```
-./annotate.py corpora/wl-test.100b<BATCH_NO>.txt corpora/wl-test.100b<BATCH_NO>a<ANNOTATION_NO>.tsv
+./annotate.py corpora/wl-test.100b<BATCH_NO>.txt
 ```
 e.g.:
 ```
-./annotate.py corpora/wl-test.100b1.txt corpora/wl-test.100b1a1.tsv
+./annotate.py corpora/wl-test.100b1.txt
 ```
