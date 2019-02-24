@@ -50,7 +50,7 @@ def main(bnd, txt, max_utt=math.inf, sample=1.0):
     with BNDReader(bnd) as reader:
         utterances_collected = 0
         for par in reader:
-            if utterances_collected > max_utt:
+            if utterances_collected >= max_utt:
                 break
             if random.random() > sample:
                 continue
