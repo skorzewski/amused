@@ -52,14 +52,14 @@ class Emotions(object):
             value = -value
         if abs(coords[indices[0]]) > 0.1:
             return {
-                -4: 'anticipation',
-                -3: 'anger',
-                -2: 'disgust',
                 -1: 'sadness',
+                -2: 'surprise',
+                -3: 'fear',
+                -4: 'disgust',
                 1: 'joy',
-                2: 'trust',
-                3: 'fear',
-                4: 'surprise',
+                2: 'anticipation',
+                3: 'anger',
+                4: 'trust',
             }[value]
         return 'neutral'
 
@@ -78,52 +78,52 @@ class Emotions(object):
             if abs(coords[indices[1]]) > 0.5:
                 values = tuple(sorted([value, value2]))
                 return {
-                    (-4, -3): 'aggressiveness',
-                    (-4, -2): 'cynicism',
-                    (-4, -1): 'pessimism',
-                    (-4, 1): 'optimism',
-                    (-4, 2): 'hope',
-                    (-4, 3): 'anxiety',
-                    (-3, -2): 'contempt',
-                    (-3, -1): 'envy',
-                    (-3, 1): 'pride',
-                    (-3, 2): 'dominance',
-                    (-3, 4): 'outrage',
-                    (-2, -1): 'remorse',
-                    (-2, 1): 'morbidness',
-                    (-2, 3): 'shame',
-                    (-2, 4): 'unbelief',
-                    (-1, 2): 'sentimentality',
-                    (-1, 3): 'despair',
-                    (-1, 4): 'disappointment',
-                    (1, 2): 'love',
-                    (1, 3): 'guilt',
-                    (1, 4): 'delight',
-                    (2, 3): 'submission',
-                    (2, 4): 'curiosity',
-                    (3, 4): 'awe',
+                    (-1, -2): 'disappointment',
+                    (-1, 2): 'pessimism',  # or frustration
+                    (1, -2): 'delight',  # or frivolity
+                    (1, 2): 'optimism',
+                    (-1, -3): 'despair',
+                    (-1, 3): 'envy',
+                    (1, -3): 'guilt',
+                    (1, 3): 'pride',
+                    (-1, -4): 'remorse',
+                    (-1, 4): 'sentimentality',  # or envy
+                    (1, -4): 'morbidness',  # or gloat
+                    (1, 4): 'love',
+                    (-2, -3): 'awe',
+                    (-2, 3): 'outrage',  # or rejection
+                    (2, -3): 'anxiety',
+                    (2, 3): 'aggressiveness',
+                    (-2, -4): 'unbelief',
+                    (-2, 4): 'curiosity',
+                    (2, -4): 'cynicism',
+                    (2, 4): 'hope',
+                    (-3, -4): 'shame',  # or coercion
+                    (-3, 4): 'submission',
+                    (3, -4): 'contempt',
+                    (3, 4): 'dominance',  # or rivalry
                 }[values]
             else:
                 return {
-                    -4: 'anticipation',
-                    -3: 'anger',
-                    -2: 'disgust',
                     -1: 'sadness',
+                    -2: 'surprise',
+                    -3: 'fear',
+                    -4: 'disgust',
                     1: 'joy',
-                    2: 'trust',
-                    3: 'fear',
-                    4: 'surprise',
+                    2: 'anticipation',
+                    3: 'anger',
+                    4: 'trust',
                 }[value]
         elif abs(coords[indices[0]]) > 0.0:
             return {
-                -4: 'interest',
-                -3: 'annoyance',
-                -2: 'boredom',
                 -1: 'pensiveness',
+                -2: 'distraction',
+                -3: 'apprehension',
+                -4: 'boredom',
                 1: 'serenity',
-                2: 'acceptance',
-                3: 'apprehension',
-                4: 'distraction',
+                2: 'interest',
+                3: 'annoyance',
+                4: 'acceptance',
             }[value]
         else:
             return 'neutral'
@@ -216,14 +216,14 @@ class Emotions(object):
         return {
             'radość':       ( 1.0,  0.0,  0.0,  0.0),
             'smutek':       (-1.0,  0.0,  0.0,  0.0),
-            'zaufanie':     ( 0.0,  1.0,  0.0,  0.0),
-            'wstręt':       ( 0.0, -1.0,  0.0,  0.0),
-            'strach':       ( 0.0,  0.0,  1.0,  0.0),
-            'złość':        ( 0.0,  0.0, -1.0,  0.0),
-            'zaskoczenie czymś nieprzewidywanym':
-                            ( 0.0,  0.0,  0.0,  1.0),
             'cieszenie się na coś oczekiwanego':
-                            ( 0.0,  0.0,  0.0, -1.0),
+                ( 0.0,  1.0,  0.0,  0.0),
+            'zaskoczenie czymś nieprzewidywanym':
+                ( 0.0, -1.0,  0.0,  0.0),
+            'strach':       ( 0.0,  0.0, -1.0,  0.0),
+            'złość':        ( 0.0,  0.0,  1.0,  0.0),
+            'zaufanie':     ( 0.0,  0.0,  0.0,  1.0),
+            'wstręt':       ( 0.0,  0.0,  0.0, -1.0),
             '':             ( 0.0,  0.0,  0.0,  0.0),
             '-':            ( 0.0,  0.0,  0.0,  0.0),
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
