@@ -1,10 +1,17 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
+import csv
+import re
+
+import numpy as np
 
 from sacred import Experiment
 
-from amused.bnd_reader import BNDReader
 from amused.emotions import EmotionsModel, Emotions
+from amused.lemmatizer import SGJPLemmatizer
+
+RE_PUNCT = re.compile(r'([!,.:;?])')
+
 
 ex = Experiment()
 
@@ -12,7 +19,7 @@ ex = Experiment()
 @ex.config
 def config():
     trainset_path = 'corpora/wl-20190209-train.bnd'
-    testset_path = 'corpora/wl-20190209-test.bnd'
+    testset_path = 'corpora/gold.tsv'
     verbose = True
     method = 'manners'
     epochs = 20
@@ -28,7 +35,9 @@ def run(trainset_path, testset_path, verbose, method, epochs, model):
     results_path = 'experiment_results/{}_{}.tsv'.format(
         method, epochs)
     with open(results_path, 'w') as results:
-        with BNDReader(testset_path) as reader:
+        with open(testset_path, 'r') as testset:
+            lemmatizer = SGJPLemmatizer()
+
             emotions_model = None
             emotions = None
 
@@ -40,24 +49,35 @@ def run(trainset_path, testset_path, verbose, method, epochs, model):
             elif model == 'handmade':
                 emotions = Emotions()
 
-            for i, par in enumerate(reader):
-                if i % 1000 == 0:
-                    print('.', end='')
-                lemmas = []
-                postags = []
-                for row in par:
-                    lemmas.append(row['lemma'])
-                    postags.append(row['pos'])
+            distances = []
 
-                emotion_coords = [0.0, 0.0, 0.0, 0.0]
+            reader = csv.DictReader(testset, delimiter='\t', fieldnames=['P', 'At', 'S', 'Ap', 'utt'])
+            for row in reader:
+                utterance = row['utt']
+                tokens = RE_PUNCT.sub(' \1', utterance).split()
+                lemmas = [lemmatizer.lemmatize(token) for token in tokens]
+
+                sentic_vector = [0.0, 0.0, 0.0, 0.0]
                 if emotions_model:
-                    emotion_coords = emotions_model.get_coords_from_text(
-                        ' '.join(lemmas))
+                    sentic_vector = emotions_model.get_coords_from_text(utterance)
                 elif emotions:
-                    emotion_coords = emotions.get_coords_from_text(
-                        lemmas, postags=postags)
+                    sentic_vector = emotions.get_coords_from_text(lemmas)
 
-                print('\t'.join([str(coord) for coord in emotion_coords]),
+                sentic_vector_str = '\t'.join([str(coord) for coord in sentic_vector])
+                print('{}\t{}'.format(sentic_vector_str, utterance),
                       file=results)
 
-            print('Done')
+                reference = np.array([float(row['P']),
+                                      float(row['At']),
+                                      float(row['S']),
+                                      float(row['Ap'])])
+                sentic_vector = np.asarray(sentic_vector)
+                distance = np.linalg.norm(sentic_vector - reference)
+                distances.append(distance)
+
+            distances = np.asarray(distances)
+            rmse = np.sqrt(np.mean(distances**2))
+
+            print('Done.')
+            print('RMSE: ' + rmse)
+            print('RMSE: ' + rmse, file=results)

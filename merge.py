@@ -47,7 +47,8 @@ def main(input_dir):
         if len(annotations) > 2:
             sentic_vectors = [letters_to_vector(annotation) for annotation in annotations]
             sentic_vector = tuple([numpy.mean(coords) for coords in zip(*sentic_vectors)])
-            print('{}\t{}'.format(sentic_vector, utterance))
+            sentic_vector_str = '\t'.join(str(coord) for coord in sentic_vector)
+            print('{}\t{}'.format(sentic_vector_str, utterance))
 
 
 if __name__ == '__main__':
