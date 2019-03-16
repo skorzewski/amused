@@ -6,7 +6,7 @@ import os
 
 import numpy as np
 import requests
-from keras.layers import Dense, Embedding, Flatten
+from keras.layers import Dense, Embedding, Flatten, LSTM
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
@@ -322,7 +322,17 @@ class Emotions(object):
 class EmotionsModel(object):
     """Model of emotions trained on a corpus of unannotated dialogs"""
 
-    def __init__(self, bnd_file_name, verbose=False, train_on='manners', epochs=10):
+    def __init__(
+            self,
+            bnd_file_name,
+            verbose=False,
+            train_on='manners',
+            epochs=10,
+            dim=100,
+            dropout=0.5,
+            recurrent_dropout=0.0,
+            lstm_layers=1,
+            dense_layers=2):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
@@ -341,7 +351,13 @@ class EmotionsModel(object):
             self._gather_data_from_reporting_clauses(bnd_file_name)
         else:
             raise Exception('You can train on *manners* or *reporting_clauses* only')
-        self._train(epochs=epochs)
+        self._train(
+            epochs=epochs,
+            dim=dim,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            lstm_layers=lstm_layers,
+            dense_layers=dense_layers)
 
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
@@ -384,7 +400,14 @@ class EmotionsModel(object):
                         self.emotions.get_coords_from_text(rc, postags=postags))
         pass
 
-    def _train(self, epochs=10):
+    def _train(
+            self,
+            epochs=10,
+            dim=100,
+            dropout=0.5,
+            recurrent_dropout=0.0,
+            lstm_layers=1,
+            dense_layers=2):
         """Process parsed dialogs"""
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
@@ -394,7 +417,7 @@ class EmotionsModel(object):
         X = padded_utterances
         y = np.array(self.emotion_coords)
 
-        embedding_dim = 100
+        embedding_dim = dim
 
         if self.verbose:
             print('Data shape:', X.shape)
@@ -404,8 +427,17 @@ class EmotionsModel(object):
 
         self.model = Sequential()
         self.model.add(Embedding(self.vocab_size, embedding_dim, input_length=self.max_length))
-        self.model.add(Flatten())
-        self.model.add(Dense(4, activation='sigmoid'))
+
+        if lstm_layers >= 2:
+            self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
+                                return_sequences=True))
+        elif lstm_layers >= 1:
+            self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
+
+        if dense_layers >= 2:
+            self.model.add(Dense(dim, activation='relu'))
+        else:
+            self.model.add(Dense(4, activation='sigmoid'))
 
         if self.verbose:
             print(self.model.summary())

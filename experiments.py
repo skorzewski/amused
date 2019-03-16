@@ -22,18 +22,36 @@ def config():
     testset_path = 'corpora/gold.tsv'
     verbose = True
     method = 'manners'
-    epochs = 20
+    epochs = 1
+    dim = 100
+    dropout = 0.5
+    recurrent_dropout = 0.0
+    lstm_layers = 1
+    dense_layers = 2
 
     if method in ['manners', 'reporting_clauses']:
         model = 'neural'
-    elif method in ['mean', 'max']:
+    elif method in ['mean', 'max', 'maxabs']:
         model = 'handmade'
 
 
+def maxabs(l):
+    """Return maximum absolute value"""
+    max_abs = 0
+    for e in l:
+        if np.abs(e) > np.abs(max_abs):
+            max_abs = e
+    return max_abs
+
+
 @ex.automain
-def run(trainset_path, testset_path, verbose, method, epochs, model):
-    results_path = 'experiment_results/{}_{}.tsv'.format(
-        method, epochs)
+def run(trainset_path, testset_path, verbose,
+        method, model, epochs,
+        dim, dropout, recurrent_dropout,
+        lstm_layers, dense_layers):
+    results_path = 'experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
+        method, dense_layers, lstm_layers, epochs,
+        dim, int(10*dropout), int(10*recurrent_dropout))
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = SGJPLemmatizer()
@@ -42,12 +60,23 @@ def run(trainset_path, testset_path, verbose, method, epochs, model):
             emotions = None
 
             if model == 'neural':
-                emotions_model = EmotionsModel(trainset_path,
-                                      verbose=verbose,
-                                      train_on=method,
-                                      epochs=epochs)
+                emotions_model = EmotionsModel(
+                    trainset_path,
+                    verbose=verbose,
+                    train_on=method,
+                    epochs=epochs,
+                    dim=dim,
+                    dropout=dropout,
+                    recurrent_dropout=recurrent_dropout,
+                    lstm_layers=lstm_layers,
+                    dense_layers=dense_layers)
             elif model == 'handmade':
-                emotions = Emotions()
+                if method == 'mean':
+                    emotions = Emotions(aggregation_function=np.mean)
+                elif method == 'max':
+                    emotions = Emotions(aggregation_function=np.max)
+                elif method == 'maxabs':
+                    emotions = Emotions(aggregation_function=maxabs)
 
             distances = []
 
@@ -79,5 +108,5 @@ def run(trainset_path, testset_path, verbose, method, epochs, model):
             rmse = np.sqrt(np.mean(distances**2))
 
             print('Done.')
-            print('RMSE: ' + rmse)
-            print('RMSE: ' + rmse, file=results)
+            print('RMSE: {}'.format(rmse))
+            print('RMSE: {}'.format(rmse), file=results)
