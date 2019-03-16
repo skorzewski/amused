@@ -431,14 +431,13 @@ class EmotionsModel(object):
         if lstm_layers >= 2:
             self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
                                 return_sequences=True))
-        elif lstm_layers >= 1:
+        if lstm_layers >= 1:
             self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
-        else:
+        if lstm_layers == 0:
             self.model.add(Flatten())
 
         if dense_layers >= 2:
             self.model.add(Dense(dim, activation='relu'))
-
         self.model.add(Dense(4, activation='sigmoid'))
 
         if self.verbose:

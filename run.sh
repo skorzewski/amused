@@ -2,7 +2,7 @@
 
 for method in manners reporting_clauses
 do
-    for epochs in 20
+    for epochs in 10
     do
         for dim in 50 100
         do
