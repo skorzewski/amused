@@ -420,6 +420,7 @@ class EmotionsModel(object):
         embedding_dim = dim
 
         if self.verbose:
+            print('Training set size: ', len(self.lemmatized_utterances))
             print('Data shape:', X.shape)
             print('Vocabulary size:', self.vocab_size)
             print('Embedding dimension:', embedding_dim)

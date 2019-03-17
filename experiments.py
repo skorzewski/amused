@@ -18,7 +18,7 @@ ex = Experiment()
 
 @ex.config
 def config():
-    trainset_path = 'corpora/wl-20190209-train.bnd'
+    trainset_path = 'corpora/wl-20190209-all.bnd'
     testset_path = 'corpora/gold.tsv'
     verbose = True
     method = 'manners'
