@@ -31,7 +31,7 @@ def config():
 
     if method in ['manners', 'reporting_clauses']:
         model = 'neural'
-    elif method in ['mean', 'max', 'maxabs']:
+    elif method in ['mean', 'max', 'maxabs', 'zero']:
         model = 'handmade'
 
 
@@ -42,6 +42,11 @@ def maxabs(l):
         if np.abs(e) > np.abs(max_abs):
             max_abs = e
     return max_abs
+
+
+def zero(l):
+    """Return all-zero vector"""
+    return 0.0
 
 
 @ex.automain
@@ -77,6 +82,8 @@ def run(trainset_path, testset_path, verbose,
                     emotions = Emotions(aggregation_function=np.max)
                 elif method == 'maxabs':
                     emotions = Emotions(aggregation_function=maxabs)
+                elif method == 'zero':
+                    emotions = Emotions(aggregation_function=zero)
 
             distances = []
 
