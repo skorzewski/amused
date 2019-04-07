@@ -437,9 +437,12 @@ class EmotionsModel(object):
         if lstm_layers == 0:
             self.model.add(Flatten())
 
+        if dense_layers >= 3:
+            self.model.add(Dense(dim, activation='tanh'))
+
         if dense_layers >= 2:
-            self.model.add(Dense(dim, activation='relu'))
-        self.model.add(Dense(4, activation='sigmoid'))
+            self.model.add(Dense(dim, activation='tanh'))
+        self.model.add(Dense(4, activation='tanh'))
 
         if self.verbose:
             print(self.model.summary())
@@ -447,8 +450,8 @@ class EmotionsModel(object):
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
         self.model.compile(optimizer='adam',
-                           loss='binary_crossentropy',
-                           metrics=['accuracy'])
+                           loss='cosine_proximity',
+                           metrics=['cosine_proximity'])
         self.model.fit(X_train, y_train, epochs=epochs)
 
     def get_coords_from_text(self, text):

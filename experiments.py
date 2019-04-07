@@ -4,8 +4,8 @@ import csv
 import re
 
 import numpy as np
-
 from sacred import Experiment
+from scipy.spatial.distance import cosine
 
 from amused.emotions import EmotionsModel, Emotions
 from amused.lemmatizer import SGJPLemmatizer
@@ -37,7 +37,7 @@ def config():
 
 def maxabs(l):
     """Return maximum absolute value"""
-    max_abs = 0
+    max_abs = 0.0
     for e in l:
         if np.abs(e) > np.abs(max_abs):
             max_abs = e
@@ -86,6 +86,7 @@ def run(trainset_path, testset_path, verbose,
                     emotions = Emotions(aggregation_function=zero)
 
             distances = []
+            cossims = []
 
             reader = csv.DictReader(testset, delimiter='\t', fieldnames=['P', 'At', 'S', 'Ap', 'utt'])
             for row in reader:
@@ -99,7 +100,7 @@ def run(trainset_path, testset_path, verbose,
                 elif emotions:
                     sentic_vector = emotions.get_coords_from_text(lemmas)
 
-                sentic_vector_str = '\t'.join([str(coord) for coord in sentic_vector])
+                sentic_vector_str = '\t'.join(['{:.6}'.format(coord) for coord in sentic_vector])
                 print('{}\t{}'.format(sentic_vector_str, utterance),
                       file=results)
 
@@ -111,9 +112,22 @@ def run(trainset_path, testset_path, verbose,
                 distance = np.linalg.norm(sentic_vector - reference)
                 distances.append(distance)
 
+                if reference.any():
+                    cosine_similarity = (cosine(sentic_vector, reference)
+                                         if sentic_vector.any()
+                                         else 0.5)
+                    print(cosine_similarity)
+                    cossims.append(cosine_similarity)
+
             distances = np.asarray(distances)
+            cos = np.mean(np.abs(cossims))
+            mae = np.mean(np.abs(distances))
             rmse = np.sqrt(np.mean(distances**2))
 
             print('Done.')
+            print('COS: {}'.format(cos))
+            print('MAE: {}'.format(mae))
             print('RMSE: {}'.format(rmse))
+            print('COS: {}'.format(cos), file=results)
+            print('MAE: {}'.format(mae), file=results)
             print('RMSE: {}'.format(rmse), file=results)
