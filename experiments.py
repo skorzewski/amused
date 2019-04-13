@@ -116,7 +116,6 @@ def run(trainset_path, testset_path, verbose,
                     cosine_similarity = (cosine(sentic_vector, reference)
                                          if sentic_vector.any()
                                          else 0.5)
-                    print(cosine_similarity)
                     cossims.append(cosine_similarity)
 
             distances = np.asarray(distances)
