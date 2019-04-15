@@ -44,7 +44,7 @@ def main(input_dir):
                     continue
                 data.setdefault(utterance, []).append(annotation)
     for utterance, annotations in data.items():
-        if len(annotations) > 2:
+        if len(annotations) > 3:
             sentic_vectors = [letters_to_vector(annotation) for annotation in annotations]
             sentic_vector = tuple([numpy.mean(coords) for coords in zip(*sentic_vectors)])
             sentic_vector_str = '\t'.join(str(coord) for coord in sentic_vector)
