@@ -86,7 +86,7 @@ def run(trainset_path, testset_path, verbose,
                     emotions = Emotions(aggregation_function=zero)
 
             distances = []
-            cossims = []
+            cos_dists = []
 
             reader = csv.DictReader(testset, delimiter='\t', fieldnames=['P', 'At', 'S', 'Ap', 'utt'])
             for row in reader:
@@ -113,20 +113,20 @@ def run(trainset_path, testset_path, verbose,
                 distances.append(distance)
 
                 if reference.any():
-                    cosine_similarity = (cosine(sentic_vector, reference)
-                                         if sentic_vector.any()
-                                         else 0.5)
-                    cossims.append(cosine_similarity)
+                    cosine_distance = (cosine(sentic_vector, reference)
+                                       if sentic_vector.any()
+                                       else 1.0)
+                    cos_dists.append(cosine_distance)
 
             distances = np.asarray(distances)
-            cos = np.mean(np.abs(cossims))
+            mcosd = np.mean(cos_dists)
             mae = np.mean(np.abs(distances))
             rmse = np.sqrt(np.mean(distances**2))
 
             print('Done.')
-            print('COS: {}'.format(cos))
+            print('MCosD: {}'.format(mcosd))
             print('MAE: {}'.format(mae))
             print('RMSE: {}'.format(rmse))
-            print('COS: {}'.format(cos), file=results)
+            print('MCosD: {}'.format(mcosd), file=results)
             print('MAE: {}'.format(mae), file=results)
             print('RMSE: {}'.format(rmse), file=results)
