@@ -36,7 +36,7 @@ def evaluate(results_file_name, reference_file_name):
 def main():
     """Main function"""
     results_file = sys.argv[1]
-    reference_file = 'corpora/gold.tsv'
+    reference_file = 'corpora/gold2.tsv'
     evaluate(results_file, reference_file)
 
 
