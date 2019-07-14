@@ -352,6 +352,10 @@ class EmotionsModel(object):
             self._gather_data_from_manners(bnd_file_name)
         elif train_on == 'reporting_clauses':
             self._gather_data_from_reporting_clauses(bnd_file_name)
+        elif train_on == 'sentences':
+            self._gather_data_from_sentences(bnd_file_name)
+        elif train_on == 'neighbors':
+            self._gather_data_from_neighbors(bnd_file_name)
         else:
             raise Exception('You can train on *manners* or *reporting_clauses* only')
         self._train(
@@ -401,7 +405,38 @@ class EmotionsModel(object):
                     self.lemmatized_utterances.append(lemmas)
                     self.emotion_coords.append(
                         self.emotions.get_coords_from_text(rc, postags=postags))
-        pass
+
+    def _gather_data_from_sentences(self, bnd):
+        with BNDReader as reader:
+            for par in reader:
+                lemmas = []
+                postags = []
+                for row in par:
+                    lemmas.append(row['lemma'])
+                    postags.append(row['pos'])
+                if lemmas and postags:
+                    if len(lemmas) > self.max_length:
+                        self.max_length = len(lemmas)
+                    self.vocabulary.update(lemmas)
+                    self.lemmatized_utterances.append(lemmas)
+                    self.emotion_coords.append(
+                        self.emotions.get_coords_from_text(lemmas, postags=postags))
+
+    def _gather_data_from_neighbors(self, bnd):
+        with BNDReader as reader:
+            for par in reader:
+                lemmas = []
+                postags = []
+                for row in par:
+                    lemmas.append(row['lemma'])
+                    postags.append(row['pos'])
+                if lemmas and postags:
+                    if len(lemmas) > self.max_length:
+                        self.max_length = len(lemmas)
+                    self.vocabulary.update(lemmas)
+                    self.lemmatized_utterances.append(lemmas)
+                    self.emotion_coords.append(
+                        self.emotions.get_coords_from_text(lemmas, postags=postags))
 
     def _train(
             self,
