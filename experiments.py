@@ -19,7 +19,7 @@ ex = Experiment()
 @ex.config
 def config():
     trainset_path = 'corpora/wl-20190209-all.bnd'
-    testset_path = 'corpora/gold2.tsv'
+    testset_path = 'corpora/gold3.tsv'
     verbose = True
     method = 'manners'
     epochs = 1
@@ -54,7 +54,7 @@ def run(trainset_path, testset_path, verbose,
         method, model, epochs,
         dim, dropout, recurrent_dropout,
         lstm_layers, dense_layers):
-    results_path = 'experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
+    results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
         method, dense_layers, lstm_layers, epochs,
         dim, int(10*dropout), int(10*recurrent_dropout))
     with open(results_path, 'w') as results:
