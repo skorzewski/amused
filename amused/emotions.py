@@ -371,7 +371,7 @@ class EmotionsModel(object):
 
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
-            for par in reader:
+            for i, par in enumerate(reader):
                 lemmas = []
                 postags = []
                 manner = []
@@ -412,10 +412,17 @@ class EmotionsModel(object):
     def _gather_data_from_sentences(self, bnd):
         with BNDReader(bnd) as reader:
             for i, par in enumerate(reader):
+<<<<<<< HEAD
                 if i >= 100000:
                     break
                 if (i % 1000 == 0):
                     print('{:.0f}%'.format(i / 1000))
+=======
+                if i == 100000:
+                    break
+                if (i % 13658 == 0):
+                    print('{:.0f}%'.format(i * 100 / 1365800))
+>>>>>>> Debug
                 lemmas = []
                 postags = []
                 for row in par:
@@ -467,6 +474,7 @@ class EmotionsModel(object):
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
                               for lemmas in self.lemmatized_utterances]
+        print(len(encoded_utterances))
         padded_utterances = pad_sequences(encoded_utterances, maxlen=self.max_length, padding='post')
 
         X = padded_utterances
