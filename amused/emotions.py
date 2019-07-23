@@ -411,6 +411,8 @@ class EmotionsModel(object):
             for i, par in enumerate(reader):
                 if i >= 100000:
                     break
+                if (i % 1000 == 0):
+                    print('{:.0f}%'.format(i / 1000))
                 lemmas = []
                 postags = []
                 for row in par:
@@ -426,9 +428,15 @@ class EmotionsModel(object):
 
     def _gather_data_from_neighbors(self, bnd):
         with BNDReader(bnd) as reader:
+            lemmas = []
+            postags = []
             for i, par in enumerate(reader):
                 if i >= 100000:
                     break
+                if (i % 1000 == 0):
+                    print('{:.0f}%'.format(i / 1000))
+                prevlemmas = lemmas
+                prevpostags = postags
                 lemmas = []
                 postags = []
                 for row in par:
@@ -440,7 +448,8 @@ class EmotionsModel(object):
                     self.vocabulary.update(lemmas)
                     self.lemmatized_utterances.append(lemmas)
                     self.emotion_coords.append(
-                        self.emotions.get_coords_from_text(lemmas, postags=postags))
+                        self.emotions.get_coords_from_text(prevlemmas + lemmas,
+                                                           postags=(prevpostags + postags)))
 
     def _train(
             self,
