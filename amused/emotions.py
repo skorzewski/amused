@@ -408,7 +408,9 @@ class EmotionsModel(object):
 
     def _gather_data_from_sentences(self, bnd):
         with BNDReader(bnd) as reader:
-            for par in reader:
+            for i, par in enumerate(reader):
+                if i >= 100000:
+                    break
                 lemmas = []
                 postags = []
                 for row in par:
@@ -424,7 +426,9 @@ class EmotionsModel(object):
 
     def _gather_data_from_neighbors(self, bnd):
         with BNDReader(bnd) as reader:
-            for par in reader:
+            for i, par in enumerate(reader):
+                if i >= 100000:
+                    break
                 lemmas = []
                 postags = []
                 for row in par:

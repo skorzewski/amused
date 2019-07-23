@@ -1,8 +1,8 @@
 #!/bin/bash -ex
 
-for method in sentences
+for method in sentences, neighbors, manners, reporting_clauses
 do
-    for epochs in 1
+    for epochs in 4
     do
         for dim in 100
         do
