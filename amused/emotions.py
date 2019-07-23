@@ -407,7 +407,7 @@ class EmotionsModel(object):
                         self.emotions.get_coords_from_text(rc, postags=postags))
 
     def _gather_data_from_sentences(self, bnd):
-        with BNDReader as reader:
+        with BNDReader(bnd) as reader:
             for par in reader:
                 lemmas = []
                 postags = []
@@ -423,7 +423,7 @@ class EmotionsModel(object):
                         self.emotions.get_coords_from_text(lemmas, postags=postags))
 
     def _gather_data_from_neighbors(self, bnd):
-        with BNDReader as reader:
+        with BNDReader(bnd) as reader:
             for par in reader:
                 lemmas = []
                 postags = []

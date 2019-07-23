@@ -29,7 +29,7 @@ def config():
     lstm_layers = 1
     dense_layers = 2
 
-    if method in ['manners', 'reporting_clauses']:
+    if method in ['manners', 'reporting_clauses', 'sentences', 'neighbors']:
         model = 'neural'
     elif method in ['mean', 'max', 'maxabs', 'zero']:
         model = 'handmade'
