@@ -1,6 +1,6 @@
 #!/bin/bash -ex
 
-for method in sentences, neighbors, manners, reporting_clauses
+for method in manners reporting_clauses sentences neighbors
 do
     for epochs in 4
     do
