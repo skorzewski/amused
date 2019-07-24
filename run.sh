@@ -1,8 +1,8 @@
 #!/bin/bash -ex
 
-for method in neighbors sentences
+for method in sentences
 do
-    for epochs in 4
+    for epochs in 1
     do
         for dim in 100
         do
@@ -14,7 +14,10 @@ do
                     do
                         for dense_layers in 1
                         do
-                            ./experiments.py with "method=${method}" "epochs=${epochs}" "dim=${dim}" "dropout=${dropout}" "recurrent_dropout=${recurrent_dropout}" "lstm_layers=${lstm_layers}" "dense_layers=${dense_layers}"
+                            for attention in True
+                            do
+                                ./experiments.py with "method=${method}" "epochs=${epochs}" "dim=${dim}" "dropout=${dropout}" "recurrent_dropout=${recurrent_dropout}" "lstm_layers=${lstm_layers}" "dense_layers=${dense_layers}" "attention=${attention}"
+                            done
                         done
                     done
                 done

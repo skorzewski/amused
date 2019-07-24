@@ -28,6 +28,7 @@ def config():
     recurrent_dropout = 0.0
     lstm_layers = 1
     dense_layers = 2
+    attention = False
 
     if method in ['manners', 'reporting_clauses', 'sentences', 'neighbors']:
         model = 'neural'
@@ -53,10 +54,10 @@ def zero(l):
 def run(trainset_path, testset_path, verbose,
         method, model, epochs,
         dim, dropout, recurrent_dropout,
-        lstm_layers, dense_layers):
-    results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
+        lstm_layers, dense_layers, attention):
+    results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}_a{}.tsv'.format(
         method, dense_layers, lstm_layers, epochs,
-        dim, int(10*dropout), int(10*recurrent_dropout))
+        dim, int(10*dropout), int(10*recurrent_dropout), 1 if attention else 0)
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = SGJPLemmatizer()
@@ -74,7 +75,8 @@ def run(trainset_path, testset_path, verbose,
                     dropout=dropout,
                     recurrent_dropout=recurrent_dropout,
                     lstm_layers=lstm_layers,
-                    dense_layers=dense_layers)
+                    dense_layers=dense_layers,
+                    attention=attention)
             elif model == 'handmade':
                 if method == 'mean':
                     emotions = Emotions(aggregation_function=np.mean)

@@ -11,6 +11,7 @@ from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
+from keras_self_attention import SeqSelfAttention
 
 from amused.bnd_reader import BNDReader
 
@@ -335,7 +336,8 @@ class EmotionsModel(object):
             dropout=0.5,
             recurrent_dropout=0.0,
             lstm_layers=1,
-            dense_layers=2):
+            dense_layers=2,
+            attention=False):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
@@ -364,7 +366,8 @@ class EmotionsModel(object):
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
             lstm_layers=lstm_layers,
-            dense_layers=dense_layers)
+            dense_layers=dense_layers,
+            attention=attention)
 
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
@@ -409,7 +412,7 @@ class EmotionsModel(object):
     def _gather_data_from_sentences(self, bnd):
         with BNDReader(bnd) as reader:
             for i, par in enumerate(reader):
-                if i >= 100000:
+                if i >= 10000:
                     break
                 if (i % 1000 == 0):
                     print('{:.0f}%'.format(i / 1000))
@@ -458,7 +461,8 @@ class EmotionsModel(object):
             dropout=0.5,
             recurrent_dropout=0.0,
             lstm_layers=1,
-            dense_layers=2):
+            dense_layers=2,
+            attention=False):
         """Process parsed dialogs"""
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
@@ -480,20 +484,27 @@ class EmotionsModel(object):
         self.model = Sequential()
         self.model.add(Embedding(self.vocab_size, embedding_dim, input_length=self.max_length))
 
-        if lstm_layers >= 2:
+        if attention:
             self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
                                 return_sequences=True))
-        if lstm_layers >= 1:
-            self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
-        if lstm_layers == 0:
+            self.model.add(SeqSelfAttention(attention_activation='sigmoid'))
             self.model.add(Flatten())
+            self.model.add(Dense(4, activation='tanh'))
+        else:
+            if lstm_layers >= 2:
+                self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
+                                    return_sequences=True))
+            if lstm_layers >= 1:
+                self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
+            if lstm_layers == 0:
+                self.model.add(Flatten())
 
-        if dense_layers >= 3:
-            self.model.add(Dense(dim, activation='tanh'))
+            if dense_layers >= 3:
+                self.model.add(Dense(dim, activation='tanh'))
+            if dense_layers >= 2:
+                self.model.add(Dense(dim, activation='tanh'))
 
-        if dense_layers >= 2:
-            self.model.add(Dense(dim, activation='tanh'))
-        self.model.add(Dense(4, activation='tanh'))
+            self.model.add(Dense(4, activation='tanh'))
 
         if self.verbose:
             print(self.model.summary())
