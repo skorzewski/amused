@@ -15,6 +15,9 @@ from sklearn.model_selection import train_test_split
 from amused.bnd_reader import BNDReader
 
 
+__version__ = '0.10.1'
+
+
 class Emotions(object):
     """Emotion analysing class"""
 
@@ -27,7 +30,7 @@ class Emotions(object):
         self._dict = {}
         self._dict2 = {}
         dir_name = os.path.dirname(__file__)
-        data_file_name = os.path.join(dir_name, 'plwordnet-emo/emo-dict.csv')
+        data_file_name = os.path.join(dir_name, 'emo-dict.csv')
         self._from_csv(data_file_name)
 
     def _from_csv(self, path):
