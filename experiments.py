@@ -6,6 +6,7 @@ import re
 import numpy as np
 from sacred import Experiment
 from scipy.spatial.distance import cosine
+from sklearn.metrics import precision_recall_fscore_support
 
 from amused.emotions import EmotionsModel, Emotions
 from amused.lemmatizer import SGJPLemmatizer
@@ -88,6 +89,9 @@ def run(trainset_path, testset_path, verbose,
             distances = []
             cos_dists = []
 
+            predictions = []
+            references = []
+
             reader = csv.DictReader(testset, delimiter='\t', fieldnames=['P', 'At', 'S', 'Ap', 'utt'])
             for row in reader:
                 utterance = row['utt']
@@ -112,6 +116,14 @@ def run(trainset_path, testset_path, verbose,
                 distance = np.linalg.norm(sentic_vector - reference)
                 distances.append(distance)
 
+                predicted_class = Emotions.coords_to_basic_name(sentic_vector, threshold=0.0)
+                reference_class = Emotions.coords_to_basic_name(reference, threshold=0.0)
+
+                print('{} / {} {}'.format(reference_class, predicted_class, sentic_vector))
+
+                predictions.append(predicted_class)
+                references.append(reference_class)
+
                 if reference.any():
                     cosine_distance = (cosine(sentic_vector, reference)
                                        if sentic_vector.any()
@@ -123,10 +135,24 @@ def run(trainset_path, testset_path, verbose,
             mae = np.mean(np.abs(distances))
             rmse = np.sqrt(np.mean(distances**2))
 
+            predictions = np.array(predictions)
+            references = np.array(references)
+
+            precision, recall, f_score, support = precision_recall_fscore_support(
+                references, predictions, average='micro')
+
             print('Done.')
+            
             print('MCosD: {}'.format(mcosd))
             print('MAE: {}'.format(mae))
             print('RMSE: {}'.format(rmse))
+            print('PREC: {}'.format(precision))
+            print('RECALL: {}'.format(recall))
+            print('FSCORE: {}'.format(f_score))
+
             print('MCosD: {}'.format(mcosd), file=results)
             print('MAE: {}'.format(mae), file=results)
             print('RMSE: {}'.format(rmse), file=results)
+            print('PREC: {}'.format(precision), file=results)
+            print('RECALL: {}'.format(recall), file=results)
+            print('FSCORE: {}'.format(f_score), file=results)

@@ -45,7 +45,7 @@ class Emotions(object):
                     row['emocje'].split(';'))
 
     @staticmethod
-    def coords_to_basic_name(coords):
+    def coords_to_basic_name(coords, threshold=0.1):
         """Return emotion name (one of 8 basic emotions)
         for a given emotion coordinates
         """
@@ -53,7 +53,7 @@ class Emotions(object):
         value = indices[0] + 1
         if coords[indices[0]] < 0:
             value = -value
-        if abs(coords[indices[0]]) > 0.1:
+        if abs(coords[indices[0]]) > threshold:
             return {
                 -1: 'sadness',
                 -2: 'surprise',
