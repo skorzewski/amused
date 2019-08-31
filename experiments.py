@@ -20,7 +20,7 @@ ex = Experiment()
 @ex.config
 def config():
     trainset_path = 'corpora/wl-20190209-all.bnd'
-    testset_path = 'corpora/gold3.tsv'
+    testset_path = 'corpora/gold_classes.tsv'
     verbose = True
     method = 'manners'
     epochs = 1
@@ -92,7 +92,7 @@ def run(trainset_path, testset_path, verbose,
             predictions = []
             references = []
 
-            reader = csv.DictReader(testset, delimiter='\t', fieldnames=['P', 'At', 'S', 'Ap', 'utt'])
+            reader = csv.DictReader(testset, delimiter='\t', fieldnames=['emo', 'utt'])
             for row in reader:
                 utterance = row['utt']
                 tokens = RE_PUNCT.sub(' \1', utterance).split()
@@ -101,30 +101,31 @@ def run(trainset_path, testset_path, verbose,
                 sentic_vector = [0.0, 0.0, 0.0, 0.0]
                 if emotions_model:
                     sentic_vector = emotions_model.get_coords_from_text(utterance)
+                    marked_utterance = utterance
                 elif emotions:
                     sentic_vector = emotions.get_coords_from_text(lemmas)
+                    marked_utterance = emotions.mark_text(tokens, lemmas)
 
                 sentic_vector_str = '\t'.join(['{:.6}'.format(coord) for coord in sentic_vector])
                 print('{}\t{}'.format(sentic_vector_str, utterance),
                       file=results)
 
-                reference = np.array([float(row['P']),
-                                      float(row['At']),
-                                      float(row['S']),
-                                      float(row['Ap'])])
+                reference_class = row['emo']
+                reference = Emotions.name_to_coords(reference_class)
                 sentic_vector = np.asarray(sentic_vector)
                 distance = np.linalg.norm(sentic_vector - reference)
                 distances.append(distance)
-
                 predicted_class = Emotions.coords_to_basic_name(sentic_vector, threshold=0.0)
-                reference_class = Emotions.coords_to_basic_name(reference, threshold=0.0)
 
-                print('{} / {} {}'.format(reference_class, predicted_class, sentic_vector))
+                if reference_class != predicted_class:
+                    print('{} != {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
+                else:
+                    print('{} == {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
 
                 predictions.append(predicted_class)
                 references.append(reference_class)
 
-                if reference.any():
+                if any(reference):
                     cosine_distance = (cosine(sentic_vector, reference)
                                        if sentic_vector.any()
                                        else 1.0)

@@ -230,6 +230,16 @@ class Emotions(object):
             '':             ( 0.0,  0.0,  0.0,  0.0),
             '-':            ( 0.0,  0.0,  0.0,  0.0),
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
+            
+            'joy':          ( 1.0,  0.0,  0.0,  0.0),
+            'sadness':      (-1.0,  0.0,  0.0,  0.0),
+            'anticipation': ( 0.0,  1.0,  0.0,  0.0),
+            'surprise':     ( 0.0, -1.0,  0.0,  0.0),
+            'fear':         ( 0.0,  0.0, -1.0,  0.0),
+            'anger':        ( 0.0,  0.0,  1.0,  0.0),
+            'trust':        ( 0.0,  0.0,  0.0,  1.0),
+            'disgust':      ( 0.0,  0.0,  0.0, -1.0),
+            'neutral':      ( 0.0,  0.0,  0.0,  0.0),
         }[emotion_name]
 
     @staticmethod
@@ -307,6 +317,22 @@ class Emotions(object):
                 for emotion in emotion_list])
             for emotion_list in emotions])
 
+    def mark_word(self, word, lexeme, postag=None, online=False):
+        """Mark word with emotion markup"""
+        if online:
+            emotions = Emotions.search_online(lexeme)
+        else:
+            emotions = self.search_offline(lexeme, postag=postag)
+        if not emotions:
+            return word
+        emotion_vector = self.aggregate([
+            self.aggregate([
+                list(Emotions.name_to_coords(emotion))
+                for emotion in emotion_list])
+            for emotion_list in emotions])
+        emotion = self.coords_to_basic_name(emotion_vector)
+        return '<{emo}>{word}</{emo}>'.format(emo=emotion, word=word)
+
     def get_coords_from_text(self, lexemes, postags=None, online=False):
         """Return the aggregated emotions from given text.
         The input text should be in lemmatized form,
@@ -320,6 +346,16 @@ class Emotions(object):
         else:
             return self.aggregate(self.get_coords(token, online=online)
                                   for token in lexemes)
+
+    def mark_text(self, words, lexemes, postags=None, online=False):
+        """Return text with words marked with emotions"""
+        if postags:
+            return ' '.join(self.mark_word(word, token, postag=postag, online=online)
+                            for word, token, postag in zip(words, lexemes, postags))
+        else:
+            return ' '.join(self.mark_word(word, token, online=online)
+                            for word, token in zip(words, lexemes))
+
 
 
 class EmotionsModel(object):
