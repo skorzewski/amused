@@ -5,6 +5,8 @@ import csv
 import os
 
 import numpy as np
+import pickle
+import re
 import requests
 from keras.layers import Dense, Embedding, Flatten, LSTM
 from keras.models import Sequential
@@ -13,36 +15,73 @@ from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
 
 from amused.bnd_reader import BNDReader
+from amused.freqlist import build_frequency_list, get_freq
+from amused.lemmatizer import SGJPLemmatizer
 
 
 __version__ = '0.10.1'
 
 
+RE_PUNCT = re.compile(r'([!,.:;?])')
+
+
 class Emotions(object):
     """Emotion analysing class"""
 
-    def __init__(self, aggregation_function=np.mean):
+    def __init__(self, aggregation_function=np.mean, lemmatizer=None):
         """Constructor.
         Parameter: aggregation_function - function that operates on list,
         for aggregating emotion coordinates
         """
         self.aggregation_function = aggregation_function
+        if lemmatizer:
+            self._lemmatizer = lemmatizer
+        else:
+            self._lemmatizer = SGJPLemmatizer()
+
         self._dict = {}
         self._dict2 = {}
+        self._wsdict = {}
+        self._wsdict2 = {}
+        self._freqlist = {}
+
         dir_name = os.path.dirname(__file__)
+        freqlist_file_name = os.path.join(dir_name, 'freqlist.pickle')
         data_file_name = os.path.join(dir_name, 'emo-dict.csv')
+
+        with open(freqlist_file_name, 'rb') as freqlist_file:
+            self._freqlist = pickle.load(freqlist_file)
         self._from_csv(data_file_name)
+
+    def _lemmatize(self, utterance):
+        tokens = RE_PUNCT.sub(' \1', utterance.lower()).split()
+        return [self._lemmatizer.lemmatize(token) for token in tokens]
 
     def _from_csv(self, path):
         """Read emotion databese from plWordNet-emo CSV file"""
         with open(path) as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                self._dict.setdefault(row['lemat'], {})[row['wariant']] = (
-                    row['emocje'].split(';'))
-                self._dict2.setdefault(
-                    (row['lemat'], row['czesc_mowy']), {})[row['wariant']] = (
-                    row['emocje'].split(';'))
+                lemma = row['lemat']
+                variant = row['wariant']
+                pos = row['czesc_mowy']
+                emotions = set(row['emocje'].split(';'))
+                examples = [row['przyklad1'], row['przyklad2']]
+                lemmatized_examples = [
+                    self._lemmatize(e) for e in examples if e and e != 'NULL']
+                cowords = set(
+                    lemma for example in lemmatized_examples
+                    for lemma in example)
+                cowords_freq = {
+                    coword: self._freqlist[coword] for coword in cowords}
+                self._dict.setdefault(lemma, {}).setdefault(
+                    variant, set()).update(emotions)
+                self._dict2.setdefault((lemma, pos), {}).setdefault(
+                    variant, set()).update(emotions)
+                self._wsdict.setdefault(lemma, {}).setdefault(
+                    variant, {}).update(cowords_freq)
+                self._wsdict2.setdefault((lemma, pos), {}).setdefault(
+                    variant, {}).update(cowords_freq)
 
     @staticmethod
     def coords_to_basic_name(coords, threshold=0.1):
@@ -230,7 +269,7 @@ class Emotions(object):
             '':             ( 0.0,  0.0,  0.0,  0.0),
             '-':            ( 0.0,  0.0,  0.0,  0.0),
             'NULL':         ( 0.0,  0.0,  0.0,  0.0),
-            
+
             'joy':          ( 1.0,  0.0,  0.0,  0.0),
             'sadness':      (-1.0,  0.0,  0.0,  0.0),
             'anticipation': ( 0.0,  1.0,  0.0,  0.0),
@@ -293,22 +332,55 @@ class Emotions(object):
                 for synset in response['results']['synsets']
                 for unit in synset['units']]
 
-    def search_offline(self, lexeme, postag=None):
+    def _word_similarity(self, word1, word2):
+        """Check how similar are two words"""
+        return 1.0 if word1 == word2 else 0.0
+
+    def _similarity(self, words1, words2):
+        """Check how similar are two lists of words"""
+        try:
+            return sum(self._word_similarity(w1, w2)
+                       for w1 in words1
+                       for w2 in words2) / (len(words1) * len(words2))
+        except ZeroDivisionError:
+            return 0.5
+
+    def search_offline(self, lexeme, postag=None, context=[]):
         """Get emotions offline"""
+        emotions = []
         if lexeme in self._dict:
+            emo_items = {}.items()
+            wsd_items = {}.items()
             if postag:
                 postag = Emotions.convert_postag(postag)
-                return self._dict2.get((lexeme, postag),
-                                       self._dict[lexeme]).values()
-            return self._dict[lexeme].values()
-        return []
+                emod = self._dict2.get((lexeme, postag),
+                                       self._dict[lexeme])
+                wsdd = self._wsdict2.get((lexeme, postag),
+                                         self._wsdict[lexeme])
+            else:
+                emod = self._dict[lexeme]
+                wsdd = self._wsdict[lexeme]
+            # variant_rating = {variant: self._similarity(wcounter.keys(),
+            #                                             context))
+            #                   for variant, wcounter in wsdd.items()}
+            variant_rating = {variant: sum(get_freq(word, wcounter)
+                                           for word in context)
+                              if wcounter else 0.001
+                              for variant, wcounter in wsdd.items()}
+            max_rating = max(variant_rating.values())
+            best_variants = [variant
+                             for variant, rating in variant_rating.items()
+                             if rating == max_rating]
+            emotions = [emod[variant] for variant in best_variants]
+        return emotions
 
-    def get_coords(self, lexeme, postag=None, online=False):
+    def get_coords(self, lexeme, postag=None, context=None, online=False):
         """Get emotions offline or online"""
         if online:
             emotions = Emotions.search_online(lexeme)
         else:
-            emotions = self.search_offline(lexeme, postag=postag)
+            emotions = self.search_offline(
+                lexeme, postag=postag, context=context)
         if not emotions:
             return 0.0, 0.0, 0.0, 0.0
         return self.aggregate([
@@ -341,11 +413,15 @@ class Emotions(object):
         emotions are calculated using given POS-tag information.
         """
         if postags:
-            return self.aggregate(self.get_coords(token, postag=postag, online=online)
-                                  for token, postag in zip(lexemes, postags))
+            return self.aggregate(
+                self.get_coords(
+                    token, postag=postag, context=lexemes, online=online)
+                for token, postag in zip(lexemes, postags))
         else:
-            return self.aggregate(self.get_coords(token, online=online)
-                                  for token in lexemes)
+            return self.aggregate(
+                self.get_coords(
+                    token, context=lexemes, online=online)
+                for token in lexemes)
 
     def mark_text(self, words, lexemes, postags=None, online=False):
         """Return text with words marked with emotions"""

@@ -16,8 +16,10 @@ class SGJPLemmatizer(object):
         data_file_name = os.path.join(dir_name, 'sgjp-20181216.pickle')
         try:
             with open(data_file_name, 'rb') as data_file:
+                print('Loading morphological dictionary...')
                 self._lemmas, self._morphs = pickle.load(data_file)
-        except:
+                print('Morphological dictionary loaded.')
+        except (EOFError, FileNotFoundError):
             tsv_file_name = os.path.join(dir_name, 'sgjp-20181216.tab')
             with open(tsv_file_name) as tsvfile:
                 reader = csv.DictReader(
@@ -30,8 +32,9 @@ class SGJPLemmatizer(object):
                 for i, row in enumerate(reader):
                     lemma = row['lemma']
                     lemma = lemma.split(':')[0] if lemma else None
+                    morph = row['morph']
                     self._lemmas.setdefault(row['form'], []).append(lemma)
-                    self._morphs.setdefault(row['form'], []).append(row['morph'])
+                    self._morphs.setdefault(row['form'], []).append(morph)
                     if i % 200000 == 0:
                         print('.', end='', flush=True)
                 with open(data_file_name, 'wb') as data_file:

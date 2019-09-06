@@ -78,13 +78,16 @@ def run(trainset_path, testset_path, verbose,
                     dense_layers=dense_layers)
             elif model == 'handmade':
                 if method == 'mean':
-                    emotions = Emotions(aggregation_function=np.mean)
+                    aggregation_function = np.mean
                 elif method == 'max':
-                    emotions = Emotions(aggregation_function=np.max)
+                    aggregation_function = np.max
                 elif method == 'maxabs':
-                    emotions = Emotions(aggregation_function=maxabs)
+                    aggregation_function = maxabs
                 elif method == 'zero':
-                    emotions = Emotions(aggregation_function=zero)
+                    aggregation_function = zero
+                emotions = Emotions(
+                    aggregation_function=aggregation_function,
+                    lemmatizer=lemmatizer)
 
             distances = []
             cos_dists = []
@@ -143,7 +146,7 @@ def run(trainset_path, testset_path, verbose,
                 references, predictions, average='micro')
 
             print('Done.')
-            
+
             print('MCosD: {}'.format(mcosd))
             print('MAE: {}'.format(mae))
             print('RMSE: {}'.format(rmse))
