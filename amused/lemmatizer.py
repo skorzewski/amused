@@ -13,12 +13,12 @@ class SGJPLemmatizer(object):
         """Constructor"""
         self._lemmas = {}
         dir_name = os.path.dirname(__file__)
-        data_file_name = os.path.join(dir_name, 'sgjp/sgjp-20181216.pickle')
+        data_file_name = os.path.join(dir_name, 'sgjp-20181216.pickle')
         try:
             with open(data_file_name, 'rb') as data_file:
                 self._lemmas, self._morphs = pickle.load(data_file)
         except:
-            tsv_file_name = os.path.join(dir_name, 'sgjp/sgjp-20181216.tab')
+            tsv_file_name = os.path.join(dir_name, 'sgjp-20181216.tab')
             with open(tsv_file_name) as tsvfile:
                 reader = csv.DictReader(
                     tsvfile,

@@ -2,10 +2,10 @@ from setuptools import setup
 
 setup(
     name='amused',
-    version='0.10.1',
+    version='0.10.2',
     zip_safe=False,
     packages=['amused'],
-    package_data={'': ['*.csv']},
+    package_data={'': ['*.csv', '*.pickle']},
     url='',
     license='MIT',
     author='Paweł Skórzewski',
