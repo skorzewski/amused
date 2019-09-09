@@ -1,8 +1,8 @@
 #!/bin/bash -ex
 
-for method in reporting_clauses
+for method in mean zero max maxabs
 do
-    for epochs in 1 2 4 8 16
+    for epochs in 1
     do
         for dim in 100
         do

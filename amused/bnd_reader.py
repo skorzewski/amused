@@ -38,3 +38,17 @@ class BNDReader(object):
             self._file.close()
         except TypeError:
             pass
+
+
+class BNDLemmaReader(BNDReader):
+    """Reader class for BND file; reads only lemmas"""
+
+    def __next__(self):
+        paragraph = []
+        while True:
+            line = next(self._file).strip()
+            if not line:
+                break
+            paragraph.append(dict(zip(self.fieldnames,
+                                      line.split('\t')))['lemma'])
+        return paragraph
