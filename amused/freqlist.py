@@ -27,6 +27,7 @@ def build_frequency_list(bnd):
                 print('.', end='', flush=True)
             for row in par:
                 counter.update([row['lemma']])
+            counter.update(['__TOTAL__'])
     print('DONE')
     with open('freqlist.pickle', 'wb') as data_file:
         pickle.dump(counter, data_file)

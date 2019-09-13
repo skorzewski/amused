@@ -4,6 +4,7 @@
 import csv
 import os
 
+import math
 import numpy as np
 import pickle
 import re
@@ -25,19 +26,36 @@ __version__ = '0.10.1'
 RE_PUNCT = re.compile(r'([!,.:;?])')
 
 
+def identity_check(a, b):
+    """Returns 1.0 if a equals b, 0.0 otherwise"""
+    return 1.0 if a == b else 0.0
+
+
 class Emotions(object):
     """Emotion analysing class"""
 
-    def __init__(self, aggregation_function=np.mean, lemmatizer=None):
+    def __init__(self,
+                 aggregation_function=np.mean,
+                 lemmatizer=None,
+                 wsd_method='none'):
         """Constructor.
-        Parameter: aggregation_function - function that operates on list,
-        for aggregating emotion coordinates
+        Parameters:
+        aggregation_function - function that operates on list,
+            for aggregating emotion coordinates
+        lemmatizer - lemmatizer, a new instance of SGJPLemmatizer by default
+        wsd_method - method for word sense disambiguation:
+            * none (default)
+            * simplified_lesk
+            * freq_weighted_lesk
+            * idf_weighted_lesk
+            * lesk_with_bootstrapping
         """
         self.aggregation_function = aggregation_function
         if lemmatizer:
             self._lemmatizer = lemmatizer
         else:
             self._lemmatizer = SGJPLemmatizer()
+        self.wsd_method = wsd_method
 
         self._dict = {}
         self._dict2 = {}
@@ -51,6 +69,7 @@ class Emotions(object):
 
         with open(freqlist_file_name, 'rb') as freqlist_file:
             self._freqlist = pickle.load(freqlist_file)
+        self._log_freqlist_total = math.log(self._freqlist['__TOTAL__'])
         self._from_csv(data_file_name)
 
     def _lemmatize(self, utterance):
@@ -83,6 +102,13 @@ class Emotions(object):
                 self._wsdict2.setdefault((lemma, pos), {}).setdefault(
                     variant, {}).update(cowords_freq)
 
+    def _idf(self, word, counter):
+        """Returns the inverse document frequency of a word"""
+        try:
+            return self._log_freqlist_total - math.log(self._freqlist[word])
+        except ValueError:
+            return 0
+
     @staticmethod
     def coords_to_basic_name(coords, threshold=0.1):
         """Return emotion name (one of 8 basic emotions)
@@ -104,7 +130,6 @@ class Emotions(object):
                 4: 'trust',
             }[value]
         return 'neutral'
-
 
     @staticmethod
     def coords_to_name(coords):
@@ -169,7 +194,6 @@ class Emotions(object):
             }[value]
         else:
             return 'neutral'
-
 
     @staticmethod
     def _localize_name(self, name, lang='en'):
@@ -332,14 +356,14 @@ class Emotions(object):
                 for synset in response['results']['synsets']
                 for unit in synset['units']]
 
-    def _word_similarity(self, word1, word2):
+    def _word_overlap(self, word1, word2):
         """Check how similar are two words"""
         return 1.0 if word1 == word2 else 0.0
 
-    def _similarity(self, words1, words2):
+    def _similarity(self, words1, words2, function=identity_check):
         """Check how similar are two lists of words"""
         try:
-            return sum(self._word_similarity(w1, w2)
+            return sum(function(w1, w2)
                        for w1 in words1
                        for w2 in words2) / (len(words1) * len(words2))
         except ZeroDivisionError:
@@ -360,17 +384,35 @@ class Emotions(object):
             else:
                 emod = self._dict[lexeme]
                 wsdd = self._wsdict[lexeme]
-            # variant_rating = {variant: self._similarity(wcounter.keys(),
-            #                                             context))
-            #                   for variant, wcounter in wsdd.items()}
-            variant_rating = {variant: sum(get_freq(word, wcounter)
-                                           for word in context)
-                              if wcounter else 0.001
-                              for variant, wcounter in wsdd.items()}
+            if self.wsd_method.startswith('simplified_lesk'):
+                variant_rating = {
+                    variant: self._similarity(
+                        wcounter.keys(), context,
+                        function=self._word_overlap)
+                    for variant, wcounter in wsdd.items()}
+            elif self.wsd_method.startswith('freq_weighted_lesk'):
+                variant_rating = {
+                    variant: sum(get_freq(word, wcounter)
+                                 for word in context)
+                    if wcounter else 0.1
+                    for variant, wcounter in wsdd.items()}
+            elif self.wsd_method.startswith('idf_weighted_lesk'):
+                variant_rating = {
+                    variant: sum(self._idf(word, wcounter)
+                                 for word in context if word in wcounter)
+                    if wcounter else 0.1
+                    for variant, wcounter in wsdd.items()}
+            else:
+                variant_rating = {variant: 0.0 for variant in wsdd.keys()}
             max_rating = max(variant_rating.values())
             best_variants = [variant
                              for variant, rating in variant_rating.items()
                              if rating == max_rating]
+            if self.wsd_method.endswith('with_bootstrapping'):
+                for variant in best_variants:
+                    self._wsdict[lexeme][variant].update({
+                        word: self._freqlist[word]
+                        for word in context})
             emotions = [emod[variant] for variant in best_variants]
         return emotions
 
@@ -389,12 +431,13 @@ class Emotions(object):
                 for emotion in emotion_list])
             for emotion_list in emotions])
 
-    def mark_word(self, word, lexeme, postag=None, online=False):
+    def mark_word(self, word, lexeme, postag=None, online=False, context=[]):
         """Mark word with emotion markup"""
         if online:
             emotions = Emotions.search_online(lexeme)
         else:
-            emotions = self.search_offline(lexeme, postag=postag)
+            emotions = self.search_offline(
+                lexeme, postag=postag, context=context)
         if not emotions:
             return word
         emotion_vector = self.aggregate([
@@ -426,12 +469,15 @@ class Emotions(object):
     def mark_text(self, words, lexemes, postags=None, online=False):
         """Return text with words marked with emotions"""
         if postags:
-            return ' '.join(self.mark_word(word, token, postag=postag, online=online)
-                            for word, token, postag in zip(words, lexemes, postags))
+            return ' '.join(
+                self.mark_word(
+                    word, token, postag=postag, online=online, context=lexemes)
+                for word, token, postag in zip(words, lexemes, postags))
         else:
-            return ' '.join(self.mark_word(word, token, online=online)
-                            for word, token in zip(words, lexemes))
-
+            return ' '.join(
+                self.mark_word(
+                    word, token, online=online, context=lexemes)
+                for word, token in zip(words, lexemes))
 
 
 class EmotionsModel(object):
@@ -465,7 +511,8 @@ class EmotionsModel(object):
         elif train_on == 'reporting_clauses':
             self._gather_data_from_reporting_clauses(bnd_file_name)
         else:
-            raise Exception('You can train on *manners* or *reporting_clauses* only')
+            raise Exception(
+                'You can train on *manners* or *reporting_clauses* only')
         self._train(
             epochs=epochs,
             dim=dim,
@@ -492,7 +539,8 @@ class EmotionsModel(object):
                     self.vocabulary.update(lemmas)
                     self.lemmatized_utterances.append(lemmas)
                     self.emotion_coords.append(
-                        self.emotions.get_coords_from_text(manner, postags=postags))
+                        self.emotions.get_coords_from_text(
+                            manner, postags=postags))
 
     def _gather_data_from_reporting_clauses(self, bnd):
         with BNDReader(bnd) as reader:
@@ -512,8 +560,8 @@ class EmotionsModel(object):
                     self.vocabulary.update(lemmas)
                     self.lemmatized_utterances.append(lemmas)
                     self.emotion_coords.append(
-                        self.emotions.get_coords_from_text(rc, postags=postags))
-        pass
+                        self.emotions.get_coords_from_text(
+                            rc, postags=postags))
 
     def _train(
             self,
@@ -527,7 +575,8 @@ class EmotionsModel(object):
         self.vocab_size = len(self.vocabulary)
         encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
                               for lemmas in self.lemmatized_utterances]
-        padded_utterances = pad_sequences(encoded_utterances, maxlen=self.max_length, padding='post')
+        padded_utterances = pad_sequences(
+            encoded_utterances, maxlen=self.max_length, padding='post')
 
         X = padded_utterances
         y = np.array(self.emotion_coords)
@@ -542,13 +591,16 @@ class EmotionsModel(object):
             print('Max. sentence length:', self.max_length)
 
         self.model = Sequential()
-        self.model.add(Embedding(self.vocab_size, embedding_dim, input_length=self.max_length))
+        self.model.add(Embedding(
+            self.vocab_size, embedding_dim, input_length=self.max_length))
 
         if lstm_layers >= 2:
-            self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
-                                return_sequences=True))
+            self.model.add(LSTM(
+                dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
+                return_sequences=True))
         if lstm_layers >= 1:
-            self.model.add(LSTM(dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
+            self.model.add(LSTM(
+                dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
         if lstm_layers == 0:
             self.model.add(Flatten())
 
@@ -562,7 +614,8 @@ class EmotionsModel(object):
         if self.verbose:
             print(self.model.summary())
 
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2)
 
         self.model.compile(optimizer='adam',
                            loss='cosine_proximity',
@@ -572,7 +625,8 @@ class EmotionsModel(object):
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
         preprocessed_text = [one_hot(text, self.vocab_size)]
-        padded_text = pad_sequences(preprocessed_text, maxlen=self.max_length, padding='post')
+        padded_text = pad_sequences(
+            preprocessed_text, maxlen=self.max_length, padding='post')
         return tuple(self.model.predict(padded_text)[0].tolist())
 
 

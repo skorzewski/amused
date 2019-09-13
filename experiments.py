@@ -23,6 +23,7 @@ def config():
     testset_path = 'corpora/gold_classes.tsv'
     verbose = True
     method = 'manners'
+    wsd_method = 'simplified_lesk'
     epochs = 1
     dim = 100
     dropout = 0.5
@@ -52,12 +53,14 @@ def zero(l):
 
 @ex.automain
 def run(trainset_path, testset_path, verbose,
-        method, model, epochs,
+        method, wsd_method, model, epochs,
         dim, dropout, recurrent_dropout,
         lstm_layers, dense_layers):
-    results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
-        method, dense_layers, lstm_layers, epochs,
-        dim, int(10*dropout), int(10*recurrent_dropout))
+    # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
+    #     method, dense_layers, lstm_layers, epochs,
+    #     dim, int(10*dropout), int(10*recurrent_dropout))
+    results_path = 'new_experiment_results/{}_{}.tsv'.format(
+        method, wsd_method)
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = SGJPLemmatizer()
@@ -87,7 +90,8 @@ def run(trainset_path, testset_path, verbose,
                     aggregation_function = zero
                 emotions = Emotions(
                     aggregation_function=aggregation_function,
-                    lemmatizer=lemmatizer)
+                    lemmatizer=lemmatizer,
+                    wsd_method=wsd_method)
 
             distances = []
             cos_dists = []
@@ -99,7 +103,7 @@ def run(trainset_path, testset_path, verbose,
             for row in reader:
                 utterance = row['utt']
                 tokens = RE_PUNCT.sub(' \1', utterance).split()
-                lemmas = [lemmatizer.lemmatize(token) for token in tokens]
+                lemmas = [lemmatizer.lemmatize(token).lower() for token in tokens]
 
                 sentic_vector = [0.0, 0.0, 0.0, 0.0]
                 if emotions_model:

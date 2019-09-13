@@ -2,24 +2,9 @@
 
 for method in mean zero max maxabs
 do
-    for epochs in 1
+    for wsd_method in none simplified_lesk freq_weighted_lesk idf_weighted_lesk simplified_lesk_with_bootstrapping freq_weighted_lesk_with_bootstrapping idf_weighted_lesk_with_bootstrapping
     do
-        for dim in 100
-        do
-            for dropout in 0.5
-            do
-                for recurrent_dropout in 0.0
-                do
-                    for lstm_layers in 0
-                    do
-                        for dense_layers in 1
-                        do
-                            ./experiments.py with "method=${method}" "epochs=${epochs}" "dim=${dim}" "dropout=${dropout}" "recurrent_dropout=${recurrent_dropout}" "lstm_layers=${lstm_layers}" "dense_layers=${dense_layers}"
-                        done
-                    done
-                done
-            done
-        done
+        ./experiments.py with "method=${method}" "wsd_method=${wsd_method}"
     done
 done
 
