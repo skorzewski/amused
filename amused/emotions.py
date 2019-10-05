@@ -20,7 +20,7 @@ from amused.freqlist import build_frequency_list, get_freq
 from amused.lemmatizer import SGJPLemmatizer
 
 
-__version__ = '0.10.1'
+__version__ = '0.11.2'
 
 
 RE_PUNCT = re.compile(r'([!,.:;?])')
