@@ -20,7 +20,7 @@ from amused.freqlist import build_frequency_list, get_freq
 from amused.lemmatizer import SGJPLemmatizer
 
 
-__version__ = '0.11.2'
+__version__ = '0.11.3'
 
 
 RE_PUNCT = re.compile(r'([!,.:;?])')
@@ -303,7 +303,7 @@ class Emotions(object):
             'trust':        ( 0.0,  0.0,  0.0,  1.0),
             'disgust':      ( 0.0,  0.0,  0.0, -1.0),
             'neutral':      ( 0.0,  0.0,  0.0,  0.0),
-        }[emotion_name]
+        }.get(emotion_name, ( 0.0,  0.0,  0.0,  0.0))
 
     @staticmethod
     def convert_postag(postag):
