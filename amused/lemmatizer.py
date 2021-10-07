@@ -5,6 +5,25 @@ import csv
 import os
 import pickle
 
+from morfeusz2 import Morfeusz
+
+
+class MorfeuszLemmatizer(object):
+    """Morfeusz-based lemmatizer"""
+
+    def __init__(self):
+        """Constructor"""
+        self.morf = Morfeusz()
+
+    def lemmatize(self, form):
+        analysed = self.morf.analyse(form)
+        for (
+            _begin,
+            _end,
+            (_wordform, baseform, _tags, _commonness, _qualifiers),
+        ) in analysed:
+            return baseform
+
 
 class SGJPLemmatizer(object):
     """Simple SGJP-based lemmatizer"""

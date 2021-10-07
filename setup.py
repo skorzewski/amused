@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='amused',
-    version='0.11.3',
+    version='0.11.4',
     zip_safe=False,
     packages=['amused'],
     package_data={'': ['*.csv', '*.pickle']},

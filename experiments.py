@@ -9,7 +9,7 @@ from scipy.spatial.distance import cosine
 from sklearn.metrics import precision_recall_fscore_support
 
 from amused.emotions import EmotionsModel, Emotions
-from amused.lemmatizer import SGJPLemmatizer
+from amused.lemmatizer import MorfeuszLemmatizer
 
 RE_PUNCT = re.compile(r'([!,.:;?])')
 
@@ -59,11 +59,11 @@ def run(trainset_path, testset_path, verbose,
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
-    results_path = 'new_experiment_results/{}_{}.tsv'.format(
+    results_path = 'old_experiment_results/{}_{}.tsv'.format(
         method, wsd_method)
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
-            lemmatizer = SGJPLemmatizer()
+            lemmatizer = MorfeuszLemmatizer()
 
             emotions_model = None
             emotions = None

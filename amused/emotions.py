@@ -17,10 +17,10 @@ from sklearn.model_selection import train_test_split
 
 from amused.bnd_reader import BNDReader
 from amused.freqlist import build_frequency_list, get_freq
-from amused.lemmatizer import SGJPLemmatizer
+from amused.lemmatizer import MorfeuszLemmatizer
 
 
-__version__ = '0.11.3'
+__version__ = '0.11.4'
 
 
 RE_PUNCT = re.compile(r'([!,.:;?])')
@@ -42,7 +42,7 @@ class Emotions(object):
         Parameters:
         aggregation_function - function that operates on list,
             for aggregating emotion coordinates
-        lemmatizer - lemmatizer, a new instance of SGJPLemmatizer by default
+        lemmatizer - lemmatizer, a new instance of MorfeuszLemmatizer by default
         wsd_method - method for word sense disambiguation:
             * none (default)
             * simplified_lesk
@@ -54,7 +54,7 @@ class Emotions(object):
         if lemmatizer:
             self._lemmatizer = lemmatizer
         else:
-            self._lemmatizer = SGJPLemmatizer()
+            self._lemmatizer = MorfeuszLemmatizer()
         self.wsd_method = wsd_method
 
         self._dict = {}
@@ -618,8 +618,8 @@ class EmotionsModel(object):
             X, y, test_size=0.2)
 
         self.model.compile(optimizer='adam',
-                           loss='cosine_proximity',
-                           metrics=['cosine_proximity'])
+                           loss='cosine_similarity',
+                           metrics=['cosine_similarity'])
         self.model.fit(X_train, y_train, epochs=epochs)
 
     def get_coords_from_text(self, text):
