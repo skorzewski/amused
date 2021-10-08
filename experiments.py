@@ -59,8 +59,10 @@ def run(trainset_path, testset_path, verbose,
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
-    results_path = 'old_experiment_results/{}_{}.tsv'.format(
-        method, wsd_method)
+    results_path = (
+        'experiment_results/{}_{}.tsv'.format(method, wsd_method)
+        if model == 'handmade'
+        else 'experiment_results/{}.tsv'.format(method))
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = MorfeuszLemmatizer()
