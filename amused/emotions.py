@@ -15,6 +15,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from amused.bnd_reader import BNDReader
 from amused.freqlist import build_frequency_list, get_freq
@@ -488,6 +489,7 @@ class EmotionsModel(object):
             bnd_file_name,
             verbose=False,
             coords_or_labels='coords',
+            use_transformer=False,
             train_on='manners',
             epochs=10,
             dim=100,
@@ -500,6 +502,7 @@ class EmotionsModel(object):
             bnd_file_name – corpus file in BND format
             verbose – verbosity (default False)
             coords_or_labels - train `coords` (default) or `labels`?
+            use_transformer - should we start with pretrained Transformer (HerBERT) (default False)?
             train_on - should the model be trained on `manners` (default) or `reporting_clauses`?
             epochs - number of training epochs
             dim - embeddings dimension
@@ -512,6 +515,8 @@ class EmotionsModel(object):
             raise Exception(
                 "You can train emotions' *coords* or *labels* only")
         self.coords_or_labels = coords_or_labels
+
+        self.use_transformer = use_transformer
 
         self.vocabulary = set()
         self.vocab_size = 0
@@ -612,66 +617,91 @@ class EmotionsModel(object):
             y = np.array(self.emotion_coords)
 
         embedding_dim = dim
+        output_dim = y.shape[1]
 
         if self.verbose:
             print('Training set size: ', len(self.lemmatized_utterances))
             print('Data shape:', X.shape)
+            print('Output dimension:', output_dim)
             print('Vocabulary size:', self.vocab_size)
             print('Embedding dimension:', embedding_dim)
             print('Max. sentence length:', self.max_length)
 
-        self.model = Sequential()
-        self.model.add(Embedding(
-            self.vocab_size, embedding_dim, input_length=self.max_length))
+        if self.use_transformer:
 
-        if lstm_layers >= 2:
-            self.model.add(LSTM(
-                dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
-                return_sequences=True))
-        if lstm_layers >= 1:
-            self.model.add(LSTM(
-                dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
-        if lstm_layers == 0:
-            self.model.add(Flatten())
+            self.tokenizer = AutoTokenizer.from_pretrained("allegro/herbert-base-cased")
+            self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
 
-        if dense_layers >= 3:
-            self.model.add(Dense(dim, activation='tanh'))
-
-        if dense_layers >= 2:
-            self.model.add(Dense(dim, activation='tanh'))
-
-        self.model.add(Dense(y.shape[1], activation='tanh'))
-
-        if self.verbose:
-            print(self.model.summary())
-
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2)
-
-        if self.coords_or_labels == 'labels':
-            self.model.compile(
-                optimizer='adam',
-                loss='categorical_crossentropy',
-                metrics=['accuracy'])
         else:
-            self.model.compile(
-                optimizer='adam',
-                loss='cosine_similarity',
-                metrics=['cosine_similarity'])
 
-        self.model.fit(X_train, y_train, epochs=epochs)
+            self.model = Sequential()
+            self.model.add(Embedding(
+                self.vocab_size, embedding_dim, input_length=self.max_length))
+
+            if lstm_layers >= 2:
+                self.model.add(LSTM(
+                    dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
+                    return_sequences=True))
+            if lstm_layers >= 1:
+                self.model.add(LSTM(
+                    dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
+            if lstm_layers == 0:
+                self.model.add(Flatten())
+
+            if dense_layers >= 3:
+                self.model.add(Dense(dim, activation='tanh'))
+
+            if dense_layers >= 2:
+                self.model.add(Dense(dim, activation='tanh'))
+
+            self.model.add(Dense(output_dim, activation='tanh'))
+
+            if self.verbose:
+                print(self.model.summary())
+
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2)
+
+            if self.coords_or_labels == 'labels':
+                self.model.compile(
+                    optimizer='adam',
+                    loss='categorical_crossentropy',
+                    metrics=['accuracy'])
+            else:
+                self.model.compile(
+                    optimizer='adam',
+                    loss='cosine_similarity',
+                    metrics=['cosine_similarity'])
+
+            self.model.fit(X_train, y_train, epochs=epochs)
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
+        if self.use_transformer:
+            output = self.model(
+                **self.tokenizer.batch_encode_plus(
+                    [(text)],
+                    padding='longest',
+                    add_special_tokens=True,
+                    return_tensors='pt'
+                )
+            )
+            #TODO
+            print(output)
+            exit(0)
+            return
+
         preprocessed_text = [one_hot(text, self.vocab_size)]
         padded_text = pad_sequences(
             preprocessed_text, maxlen=self.max_length, padding='post')
         prediction = self.model.predict(padded_text)
+
         if self.coords_or_labels == 'labels':
             predicted_id = np.argmax(prediction, axis=-1)
             predicted_label = self.label_encoder.inverse_transform(predicted_id)[0]
             predicted_coords = Emotions.name_to_coords(predicted_label)
             return list(predicted_coords)
+
         return tuple(prediction[0].tolist())
 
 

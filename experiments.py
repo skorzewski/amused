@@ -7,6 +7,7 @@ import numpy as np
 from sacred import Experiment
 from scipy.spatial.distance import cosine
 from sklearn.metrics import precision_recall_fscore_support
+import transformers
 
 from amused.emotions import EmotionsModel, Emotions
 from amused.lemmatizer import MorfeuszLemmatizer
@@ -23,6 +24,7 @@ def config():
     testset_path = 'corpora/gold_classes.tsv'
     verbose = True
     coords_or_labels = 'coords'
+    use_transformer = False
     method = 'manners'
     wsd_method = 'simplified_lesk'
     epochs = 1
@@ -54,7 +56,8 @@ def zero(l):
 
 @ex.automain
 def run(trainset_path, testset_path, verbose,
-        coords_or_labels, method, wsd_method, model, epochs,
+        coords_or_labels, use_transformer,
+        method, wsd_method, model, epochs,
         dim, dropout, recurrent_dropout,
         lstm_layers, dense_layers):
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
@@ -76,6 +79,7 @@ def run(trainset_path, testset_path, verbose,
                     trainset_path,
                     verbose=verbose,
                     coords_or_labels=coords_or_labels,
+                    use_transformer=use_transformer,
                     train_on=method,
                     epochs=epochs,
                     dim=dim,
