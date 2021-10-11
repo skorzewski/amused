@@ -2,23 +2,23 @@
 # -*- coding: utf-8 -*-
 
 import csv
-import os
-
 import math
-import numpy as np
+import os
 import pickle
 import re
+
+import numpy as np
 import requests
-from keras.layers import Dense, Embedding, Flatten, LSTM
+from keras.layers import LSTM, Dense, Embedding, Flatten
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 from amused.bnd_reader import BNDReader
 from amused.freqlist import build_frequency_list, get_freq
 from amused.lemmatizer import MorfeuszLemmatizer
-
 
 __version__ = '0.11.4'
 
@@ -487,6 +487,7 @@ class EmotionsModel(object):
             self,
             bnd_file_name,
             verbose=False,
+            coords_or_labels='coords',
             train_on='manners',
             epochs=10,
             dim=100,
@@ -497,15 +498,30 @@ class EmotionsModel(object):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
-            verbose – verbosity (True/False)
+            verbose – verbosity (default False)
+            coords_or_labels - train `coords` (default) or `labels`?
+            train_on - should the model be trained on `manners` (default) or `reporting_clauses`?
+            epochs - number of training epochs
+            dim - embeddings dimension
+            dropout - dropout
+            recurrent_dropout - recurrent dropout
+            lstm_layers - number of LSTM layers
+            dense_layers - number of dense layers
         """
+        if coords_or_labels not in ['coords', 'labels']:
+            raise Exception(
+                "You can train emotions' *coords* or *labels* only")
+        self.coords_or_labels = coords_or_labels
+
         self.vocabulary = set()
         self.vocab_size = 0
         self.max_length = 0
         self.verbose = verbose
         self.emotions = Emotions(aggregation_function=np.max)
         self.lemmatized_utterances = []
+        self.emotion_labels = []
         self.emotion_coords = []
+
         if train_on == 'manners':
             self._gather_data_from_manners(bnd_file_name)
         elif train_on == 'reporting_clauses':
@@ -513,6 +529,7 @@ class EmotionsModel(object):
         else:
             raise Exception(
                 'You can train on *manners* or *reporting_clauses* only')
+
         self._train(
             epochs=epochs,
             dim=dim,
@@ -538,13 +555,15 @@ class EmotionsModel(object):
                         self.max_length = len(lemmas)
                     self.vocabulary.update(lemmas)
                     self.lemmatized_utterances.append(lemmas)
-                    self.emotion_coords.append(
-                        self.emotions.get_coords_from_text(
-                            manner, postags=postags))
+                    emotion_coords = self.emotions.get_coords_from_text(
+                        manner, postags=postags)
+                    self.emotion_coords.append(emotion_coords)
+                    self.emotion_labels.append(
+                        Emotions.coords_to_basic_name(emotion_coords))
 
     def _gather_data_from_reporting_clauses(self, bnd):
         with BNDReader(bnd) as reader:
-            for par in reader:
+            for i, par in enumerate(reader):
                 lemmas = []
                 postags = []
                 rc = []
@@ -559,9 +578,11 @@ class EmotionsModel(object):
                         self.max_length = len(lemmas)
                     self.vocabulary.update(lemmas)
                     self.lemmatized_utterances.append(lemmas)
-                    self.emotion_coords.append(
-                        self.emotions.get_coords_from_text(
-                            rc, postags=postags))
+                    emotion_coords = self.emotions.get_coords_from_text(
+                        rc, postags=postags)
+                    self.emotion_coords.append(emotion_coords)
+                    self.emotion_labels.append(
+                        Emotions.coords_to_basic_name(emotion_coords))
 
     def _train(
             self,
@@ -579,7 +600,16 @@ class EmotionsModel(object):
             encoded_utterances, maxlen=self.max_length, padding='post')
 
         X = padded_utterances
-        y = np.array(self.emotion_coords)
+
+        if self.coords_or_labels == 'labels':
+            self.label_encoder = LabelEncoder()
+            one_hot_encoder = OneHotEncoder(sparse=False)
+            emotion_labels = np.array(self.emotion_labels)
+            encoded_labels = self.label_encoder.fit_transform(
+                emotion_labels)
+            y = one_hot_encoder.fit_transform(encoded_labels.reshape(-1, 1))
+        else:
+            y = np.array(self.emotion_coords)
 
         embedding_dim = dim
 
@@ -609,7 +639,8 @@ class EmotionsModel(object):
 
         if dense_layers >= 2:
             self.model.add(Dense(dim, activation='tanh'))
-        self.model.add(Dense(4, activation='tanh'))
+
+        self.model.add(Dense(y.shape[1], activation='tanh'))
 
         if self.verbose:
             print(self.model.summary())
@@ -617,9 +648,17 @@ class EmotionsModel(object):
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2)
 
-        self.model.compile(optimizer='adam',
-                           loss='cosine_similarity',
-                           metrics=['cosine_similarity'])
+        if self.coords_or_labels == 'labels':
+            self.model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy'])
+        else:
+            self.model.compile(
+                optimizer='adam',
+                loss='cosine_similarity',
+                metrics=['cosine_similarity'])
+
         self.model.fit(X_train, y_train, epochs=epochs)
 
     def get_coords_from_text(self, text):
@@ -627,7 +666,13 @@ class EmotionsModel(object):
         preprocessed_text = [one_hot(text, self.vocab_size)]
         padded_text = pad_sequences(
             preprocessed_text, maxlen=self.max_length, padding='post')
-        return tuple(self.model.predict(padded_text)[0].tolist())
+        prediction = self.model.predict(padded_text)
+        if self.coords_or_labels == 'labels':
+            predicted_id = np.argmax(prediction, axis=-1)
+            predicted_label = self.label_encoder.inverse_transform(predicted_id)[0]
+            predicted_coords = Emotions.name_to_coords(predicted_label)
+            return list(predicted_coords)
+        return tuple(prediction[0].tolist())
 
 
 if __name__ == '__main__':

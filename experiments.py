@@ -22,6 +22,7 @@ def config():
     trainset_path = 'corpora/wl-20190209-all.bnd'
     testset_path = 'corpora/gold_classes.tsv'
     verbose = True
+    coords_or_labels = 'coords'
     method = 'manners'
     wsd_method = 'simplified_lesk'
     epochs = 1
@@ -53,16 +54,16 @@ def zero(l):
 
 @ex.automain
 def run(trainset_path, testset_path, verbose,
-        method, wsd_method, model, epochs,
+        coords_or_labels, method, wsd_method, model, epochs,
         dim, dropout, recurrent_dropout,
         lstm_layers, dense_layers):
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
     results_path = (
-        'experiment_results/{}_{}.tsv'.format(method, wsd_method)
+        f'experiment_results/{method}_{wsd_method}.tsv'
         if model == 'handmade'
-        else 'experiment_results/{}.tsv'.format(method))
+        else f'experiment_results/{method}_{coords_or_labels}.tsv')
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = MorfeuszLemmatizer()
@@ -74,6 +75,7 @@ def run(trainset_path, testset_path, verbose,
                 emotions_model = EmotionsModel(
                     trainset_path,
                     verbose=verbose,
+                    coords_or_labels=coords_or_labels,
                     train_on=method,
                     epochs=epochs,
                     dim=dim,
@@ -126,10 +128,10 @@ def run(trainset_path, testset_path, verbose,
                 distances.append(distance)
                 predicted_class = Emotions.coords_to_basic_name(sentic_vector, threshold=0.0)
 
-                if reference_class != predicted_class:
-                    print('{} != {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
-                else:
-                    print('{} == {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
+                # if reference_class != predicted_class:
+                #     print('{} != {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
+                # else:
+                #     print('{} == {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
 
                 predictions.append(predicted_class)
                 references.append(reference_class)
