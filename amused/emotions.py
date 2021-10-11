@@ -9,6 +9,7 @@ import re
 
 import numpy as np
 import requests
+from keras.callbacks import EarlyStopping
 from keras.layers import LSTM, Dense, Embedding, Flatten
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
@@ -496,7 +497,8 @@ class EmotionsModel(object):
             dropout=0.5,
             recurrent_dropout=0.0,
             lstm_layers=1,
-            dense_layers=2):
+            dense_layers=2,
+            early_stopping=True):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
@@ -510,6 +512,7 @@ class EmotionsModel(object):
             recurrent_dropout - recurrent dropout
             lstm_layers - number of LSTM layers
             dense_layers - number of dense layers
+            early_stopping - use early stopping
         """
         if coords_or_labels not in ['coords', 'labels']:
             raise Exception(
@@ -541,7 +544,8 @@ class EmotionsModel(object):
             dropout=dropout,
             recurrent_dropout=recurrent_dropout,
             lstm_layers=lstm_layers,
-            dense_layers=dense_layers)
+            dense_layers=dense_layers,
+            early_stopping=early_stopping)
 
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
@@ -596,11 +600,13 @@ class EmotionsModel(object):
             dropout=0.5,
             recurrent_dropout=0.0,
             lstm_layers=1,
-            dense_layers=2):
+            dense_layers=2,
+            early_stopping=True):
         """Process parsed dialogs"""
         self.vocab_size = len(self.vocabulary)
-        encoded_utterances = [one_hot(' '.join(lemmas), self.vocab_size)
-                              for lemmas in self.lemmatized_utterances]
+        encoded_utterances = [
+            one_hot(' '.join(lemmas), self.vocab_size)
+            for lemmas in self.lemmatized_utterances]
         padded_utterances = pad_sequences(
             encoded_utterances, maxlen=self.max_length, padding='post')
 
@@ -628,12 +634,9 @@ class EmotionsModel(object):
             print('Max. sentence length:', self.max_length)
 
         if self.use_transformer:
-
             self.tokenizer = AutoTokenizer.from_pretrained("allegro/herbert-base-cased")
             self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
-
         else:
-
             self.model = Sequential()
             self.model.add(Embedding(
                 self.vocab_size, embedding_dim, input_length=self.max_length))
@@ -673,7 +676,8 @@ class EmotionsModel(object):
                     loss='cosine_similarity',
                     metrics=['cosine_similarity'])
 
-            self.model.fit(X_train, y_train, epochs=epochs)
+            callback = EarlyStopping(monitor='loss', patience=3)
+            self.model.fit(X_train, y_train, epochs=epochs, callbacks=[callback])
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""

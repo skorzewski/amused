@@ -33,6 +33,7 @@ def config():
     recurrent_dropout = 0.0
     lstm_layers = 1
     dense_layers = 2
+    early_stopping = True
 
     if method in ['manners', 'reporting_clauses']:
         model = 'neural'
@@ -59,7 +60,8 @@ def run(trainset_path, testset_path, verbose,
         coords_or_labels, use_transformer,
         method, wsd_method, model, epochs,
         dim, dropout, recurrent_dropout,
-        lstm_layers, dense_layers):
+        lstm_layers, dense_layers,
+        early_stopping):
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
@@ -86,7 +88,8 @@ def run(trainset_path, testset_path, verbose,
                     dropout=dropout,
                     recurrent_dropout=recurrent_dropout,
                     lstm_layers=lstm_layers,
-                    dense_layers=dense_layers)
+                    dense_layers=dense_layers,
+                    early_stopping=early_stopping)
             elif model == 'handmade':
                 if method == 'mean':
                     aggregation_function = np.mean
