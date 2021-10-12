@@ -625,6 +625,9 @@ class EmotionsModel(object):
         embedding_dim = dim
         output_dim = y.shape[1]
 
+        X = X[:1000]
+        y = y[:1000]
+
         if self.verbose:
             print('Training set size: ', len(self.lemmatized_utterances))
             print('Data shape:', X.shape)
@@ -690,15 +693,12 @@ class EmotionsModel(object):
                     return_tensors='pt'
                 )
             )
-            #TODO
-            print(output)
-            exit(0)
-            return
-
-        preprocessed_text = [one_hot(text, self.vocab_size)]
-        padded_text = pad_sequences(
-            preprocessed_text, maxlen=self.max_length, padding='post')
-        prediction = self.model.predict(padded_text)
+            prediction = output['logits'].detach().numpy()
+        else:
+            preprocessed_text = [one_hot(text, self.vocab_size)]
+            padded_text = pad_sequences(
+                preprocessed_text, maxlen=self.max_length, padding='post')
+            prediction = self.model.predict(padded_text)
 
         if self.coords_or_labels == 'labels':
             predicted_id = np.argmax(prediction, axis=-1)

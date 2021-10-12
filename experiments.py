@@ -65,10 +65,13 @@ def run(trainset_path, testset_path, verbose,
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
-    results_path = (
-        f'experiment_results/{method}_{wsd_method}.tsv'
+    transformer_str = "_transformer" if use_transformer else ""
+    experiment_name = (
+        f"{method}_{wsd_method}"
         if model == 'handmade'
-        else f'experiment_results/{method}_{coords_or_labels}.tsv')
+        else f"experiment_results/{method}_{coords_or_labels}{transformer_str}")
+    results_path = f"experiment_results/{experiment_name}.tsv"
+
     with open(results_path, 'w') as results:
         with open(testset_path, 'r') as testset:
             lemmatizer = MorfeuszLemmatizer()
