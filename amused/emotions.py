@@ -9,6 +9,7 @@ import re
 
 import numpy as np
 import requests
+import torch
 from keras.callbacks import EarlyStopping
 from keras.layers import LSTM, Dense, Embedding, Flatten
 from keras.models import Sequential
@@ -16,7 +17,8 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
+                          Trainer, TrainingArguments)
 
 from amused.bnd_reader import BNDReader
 from amused.freqlist import build_frequency_list, get_freq
@@ -481,6 +483,18 @@ class Emotions(object):
                     word, token, online=online, context=lexemes)
                 for word, token in zip(words, lexemes))
 
+class EmotionsDataset(torch.utils.data.Dataset):
+    def __init__(self, encodings, labels):
+        self.encodings = encodings
+        self.labels = labels
+
+    def __getitem__(self, idx):
+        item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+        item['labels'] = torch.tensor(self.labels[idx])
+        return item
+
+    def __len__(self):
+        return len(self.labels)
 
 class EmotionsModel(object):
     """Model of emotions trained on a corpus of unannotated dialogs"""
@@ -529,6 +543,7 @@ class EmotionsModel(object):
         self.lemmatized_utterances = []
         self.emotion_labels = []
         self.emotion_coords = []
+        self.target_labels = None
 
         if train_on == 'manners':
             self._gather_data_from_manners(bnd_file_name)
@@ -538,14 +553,17 @@ class EmotionsModel(object):
             raise Exception(
                 'You can train on *manners* or *reporting_clauses* only')
 
-        self._train(
-            epochs=epochs,
-            dim=dim,
-            dropout=dropout,
-            recurrent_dropout=recurrent_dropout,
-            lstm_layers=lstm_layers,
-            dense_layers=dense_layers,
-            early_stopping=early_stopping)
+        if self.use_transformer:
+            self._train_transformer()
+        else:
+            self._train(
+                epochs=epochs,
+                dim=dim,
+                dropout=dropout,
+                recurrent_dropout=recurrent_dropout,
+                lstm_layers=lstm_layers,
+                dense_layers=dense_layers,
+                early_stopping=early_stopping)
 
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
@@ -593,6 +611,59 @@ class EmotionsModel(object):
                     self.emotion_labels.append(
                         Emotions.coords_to_basic_name(emotion_coords))
 
+    def _prepare_labels(self):
+        """Prepare labels for training"""
+        if self.coords_or_labels == 'labels':
+            self.label_encoder = LabelEncoder()
+            one_hot_encoder = OneHotEncoder(sparse=False)
+            emotion_labels = np.array(self.emotion_labels)
+            encoded_labels = self.label_encoder.fit_transform(
+                emotion_labels)
+            self.target_labels = one_hot_encoder.fit_transform(encoded_labels.reshape(-1, 1))
+        else:
+            self.target_labels = np.array(self.emotion_coords)
+
+    def _train_transformer(self):
+        """Train on parsed dialogs with Transformer"""
+        self._prepare_labels()
+        output_dim = self.target_labels.shape[1]
+
+        sentences = [
+            " ".join(sentence_lemmas)
+            for sentence_lemmas in self.lemmatized_utterances]
+        train_texts, val_texts, train_labels, val_labels = train_test_split(sentences, self.target_labels, test_size=.2)
+
+        self.tokenizer = AutoTokenizer.from_pretrained("allegro/herbert-base-cased")
+
+        train_encodings = self.tokenizer(train_texts, truncation=True, padding=True)
+        val_encodings = self.tokenizer(val_texts, truncation=True, padding=True)
+
+        train_dataset = EmotionsDataset(train_encodings, train_labels)
+        val_dataset = EmotionsDataset(val_encodings, val_labels)
+
+        training_args = TrainingArguments(
+            output_dir="./results",
+            num_train_epochs=3,
+            per_device_train_batch_size=16,
+            per_device_eval_batch_size=64,
+            warmup_steps=500,
+            weight_decay=0.01,
+            logging_dir='./logs',
+            logging_steps=10,
+        )
+
+        self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
+
+        trainer = Trainer(
+            model=self.model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=val_dataset,
+        )
+
+        trainer.train()
+
+
     def _train(
             self,
             epochs=10,
@@ -610,23 +681,13 @@ class EmotionsModel(object):
         padded_utterances = pad_sequences(
             encoded_utterances, maxlen=self.max_length, padding='post')
 
-        X = padded_utterances
+        self._prepare_labels()
 
-        if self.coords_or_labels == 'labels':
-            self.label_encoder = LabelEncoder()
-            one_hot_encoder = OneHotEncoder(sparse=False)
-            emotion_labels = np.array(self.emotion_labels)
-            encoded_labels = self.label_encoder.fit_transform(
-                emotion_labels)
-            y = one_hot_encoder.fit_transform(encoded_labels.reshape(-1, 1))
-        else:
-            y = np.array(self.emotion_coords)
+        X = padded_utterances
+        y = self.target_labels
 
         embedding_dim = dim
         output_dim = y.shape[1]
-
-        X = X[:1000]
-        y = y[:1000]
 
         if self.verbose:
             print('Training set size: ', len(self.lemmatized_utterances))
@@ -636,51 +697,47 @@ class EmotionsModel(object):
             print('Embedding dimension:', embedding_dim)
             print('Max. sentence length:', self.max_length)
 
-        if self.use_transformer:
-            self.tokenizer = AutoTokenizer.from_pretrained("allegro/herbert-base-cased")
-            self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
+        self.model = Sequential()
+        self.model.add(Embedding(
+            self.vocab_size, embedding_dim, input_length=self.max_length))
+
+        if lstm_layers >= 2:
+            self.model.add(LSTM(
+                dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
+                return_sequences=True))
+        if lstm_layers >= 1:
+            self.model.add(LSTM(
+                dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
+        if lstm_layers == 0:
+            self.model.add(Flatten())
+
+        if dense_layers >= 3:
+            self.model.add(Dense(dim, activation='tanh'))
+
+        if dense_layers >= 2:
+            self.model.add(Dense(dim, activation='tanh'))
+
+        self.model.add(Dense(output_dim, activation='tanh'))
+
+        if self.verbose:
+            print(self.model.summary())
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.2)
+
+        if self.coords_or_labels == 'labels':
+            self.model.compile(
+                optimizer='adam',
+                loss='categorical_crossentropy',
+                metrics=['accuracy'])
         else:
-            self.model = Sequential()
-            self.model.add(Embedding(
-                self.vocab_size, embedding_dim, input_length=self.max_length))
+            self.model.compile(
+                optimizer='adam',
+                loss='cosine_similarity',
+                metrics=['cosine_similarity'])
 
-            if lstm_layers >= 2:
-                self.model.add(LSTM(
-                    dim, dropout=dropout, recurrent_dropout=recurrent_dropout,
-                    return_sequences=True))
-            if lstm_layers >= 1:
-                self.model.add(LSTM(
-                    dim, dropout=dropout, recurrent_dropout=recurrent_dropout))
-            if lstm_layers == 0:
-                self.model.add(Flatten())
-
-            if dense_layers >= 3:
-                self.model.add(Dense(dim, activation='tanh'))
-
-            if dense_layers >= 2:
-                self.model.add(Dense(dim, activation='tanh'))
-
-            self.model.add(Dense(output_dim, activation='tanh'))
-
-            if self.verbose:
-                print(self.model.summary())
-
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2)
-
-            if self.coords_or_labels == 'labels':
-                self.model.compile(
-                    optimizer='adam',
-                    loss='categorical_crossentropy',
-                    metrics=['accuracy'])
-            else:
-                self.model.compile(
-                    optimizer='adam',
-                    loss='cosine_similarity',
-                    metrics=['cosine_similarity'])
-
-            callback = EarlyStopping(monitor='loss', patience=3)
-            self.model.fit(X_train, y_train, epochs=epochs, callbacks=[callback])
+        callback = EarlyStopping(monitor='loss', patience=3)
+        self.model.fit(X_train, y_train, epochs=epochs, callbacks=[callback])
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""

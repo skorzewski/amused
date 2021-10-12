@@ -69,7 +69,7 @@ def run(trainset_path, testset_path, verbose,
     experiment_name = (
         f"{method}_{wsd_method}"
         if model == 'handmade'
-        else f"experiment_results/{method}_{coords_or_labels}{transformer_str}")
+        else f"{method}_{coords_or_labels}{transformer_str}")
     results_path = f"experiment_results/{experiment_name}.tsv"
 
     with open(results_path, 'w') as results:
