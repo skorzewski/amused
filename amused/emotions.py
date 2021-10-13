@@ -18,7 +18,7 @@ from keras.preprocessing.text import one_hot
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
-                          Trainer, TrainingArguments)
+                          EarlyStoppingCallback, Trainer, TrainingArguments)
 
 from amused.bnd_reader import BNDReader
 from amused.freqlist import build_frequency_list, get_freq
@@ -554,7 +554,9 @@ class EmotionsModel(object):
                 'You can train on *manners* or *reporting_clauses* only')
 
         if self.use_transformer:
-            self._train_transformer()
+            self._train_transformer(
+                epochs=epochs,
+                early_stopping=early_stopping)
         else:
             self._train(
                 epochs=epochs,
@@ -623,7 +625,10 @@ class EmotionsModel(object):
         else:
             self.target_labels = np.array(self.emotion_coords)
 
-    def _train_transformer(self):
+    def _train_transformer(
+            self,
+            epochs=1,
+            early_stopping=True):
         """Train on parsed dialogs with Transformer"""
         self._prepare_labels()
         output_dim = self.target_labels.shape[1]
@@ -641,15 +646,20 @@ class EmotionsModel(object):
         train_dataset = EmotionsDataset(train_encodings, train_labels)
         val_dataset = EmotionsDataset(val_encodings, val_labels)
 
+        callbacks = []
+        if early_stopping:
+            callbacks.append(EarlyStoppingCallback(early_stopping_patience=3))
+
         training_args = TrainingArguments(
             output_dir="./results",
-            num_train_epochs=3,
-            per_device_train_batch_size=16,
-            per_device_eval_batch_size=64,
-            warmup_steps=500,
-            weight_decay=0.01,
-            logging_dir='./logs',
-            logging_steps=10,
+            num_train_epochs=epochs,
+            # per_device_train_batch_size=16,
+            # per_device_eval_batch_size=64,
+            # warmup_steps=500,
+            # weight_decay=0.01,
+            # logging_dir='./logs',
+            # logging_steps=10,
+            callbacks=callbacks
         )
 
         self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
@@ -736,8 +746,11 @@ class EmotionsModel(object):
                 loss='cosine_similarity',
                 metrics=['cosine_similarity'])
 
-        callback = EarlyStopping(monitor='loss', patience=3)
-        self.model.fit(X_train, y_train, epochs=epochs, callbacks=[callback])
+        callbacks = []
+        if early_stopping:
+            callbacks.append(EarlyStopping(monitor='loss', patience=3))
+
+        self.model.fit(X_train, y_train, epochs=epochs, callbacks=callbacks)
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
