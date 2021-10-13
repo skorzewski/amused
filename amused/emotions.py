@@ -661,7 +661,7 @@ class EmotionsModel(object):
             logging_steps=100,
             save_steps=100,
             eval_steps=100,
-            eval_strategy="steps",
+            evaluation_strategy="steps",
             load_best_model_at_end=True,
         )
 
