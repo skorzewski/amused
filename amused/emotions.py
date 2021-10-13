@@ -659,7 +659,6 @@ class EmotionsModel(object):
             # weight_decay=0.01,
             # logging_dir='./logs',
             # logging_steps=10,
-            callbacks=callbacks
         )
 
         self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
@@ -669,6 +668,7 @@ class EmotionsModel(object):
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
+            callbacks=callbacks
         )
 
         trainer.train()
