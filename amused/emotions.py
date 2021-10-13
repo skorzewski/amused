@@ -658,7 +658,10 @@ class EmotionsModel(object):
             # warmup_steps=500,
             # weight_decay=0.01,
             # logging_dir='./logs',
-            # logging_steps=10,
+            logging_steps=100,
+            save_steps=100,
+            eval_steps=100,
+            eval_strategy="steps",
             load_best_model_at_end=True,
         )
 
