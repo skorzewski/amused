@@ -800,11 +800,11 @@ class EmotionsModel(object):
 
         y_pred = self.model.predict(X_test)
 
-        if self.verbose:
-            precision, recall, f_score, support = precision_recall_fscore_support(
-                y_test, y_pred, average='micro')
-            accuracy = accuracy_score(y_test, y_pred)
-            print(f"P={precision}\tR={recall}\tF={f_score}\tA={accuracy}")
+        # if self.verbose:
+        #     precision, recall, f_score, support = precision_recall_fscore_support(
+        #         y_test, y_pred, average='micro')
+        #     accuracy = accuracy_score(y_test, y_pred)
+        #     print(f"P={precision}\tR={recall}\tF={f_score}\tA={accuracy}")
 
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
