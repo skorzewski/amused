@@ -14,7 +14,7 @@ do
     do
         for use_transformers in True False
         do
-            ./experiments.py with "method=${method}" "coors_or_labels=${coords_or_labels}" "use_transformers=${use_transformers}"
+            ./experiments.py with "method=${method}" "coords_or_labels=${coords_or_labels}" "use_transformers=${use_transformers}"
         done
     done
 done
