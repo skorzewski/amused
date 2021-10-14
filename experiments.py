@@ -6,7 +6,7 @@ import re
 import numpy as np
 from sacred import Experiment
 from scipy.spatial.distance import cosine
-from sklearn.metrics import precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score
 import transformers
 
 from amused.emotions import EmotionsModel, Emotions
@@ -22,6 +22,7 @@ ex = Experiment()
 def config():
     trainset_path = 'corpora/wl-20190209-all.bnd'
     testset_path = 'corpora/gold_classes.tsv'
+    embeddings_path = 'embeddings/nkjp+wiki-lemmas-all-100-skipg-hs.txt'
     verbose = True
     coords_or_labels = 'coords'
     use_transformer = False
@@ -128,9 +129,6 @@ def run(trainset_path, testset_path, verbose,
                     marked_utterance = emotions.mark_text(tokens, lemmas)
 
                 sentic_vector_str = '\t'.join(['{:.6}'.format(coord) for coord in sentic_vector])
-                print('{}\t{}'.format(sentic_vector_str, utterance),
-                      file=results)
-
                 reference_class = row['emo']
                 reference = Emotions.name_to_coords(reference_class)
                 sentic_vector = np.asarray(sentic_vector)
@@ -142,6 +140,10 @@ def run(trainset_path, testset_path, verbose,
                 #     print('{} != {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
                 # else:
                 #     print('{} == {} {}: "{}"'.format(reference_class, predicted_class, sentic_vector, marked_utterance))
+
+                print(
+                    f'{sentic_vector_str}\t{predicted_class}\t{reference_class}\t{utterance}',
+                    file=results)
 
                 predictions.append(predicted_class)
                 references.append(reference_class)
@@ -163,6 +165,8 @@ def run(trainset_path, testset_path, verbose,
             precision, recall, f_score, support = precision_recall_fscore_support(
                 references, predictions, average='micro')
 
+            accuracy = accuracy_score(references, predictions)
+
             print('Done.')
 
             print('MCosD: {}'.format(mcosd))
@@ -171,6 +175,7 @@ def run(trainset_path, testset_path, verbose,
             print('PREC: {}'.format(precision))
             print('RECALL: {}'.format(recall))
             print('FSCORE: {}'.format(f_score))
+            print('ACC: {}'.format(accuracy))
 
             print('MCosD: {}'.format(mcosd), file=results)
             print('MAE: {}'.format(mae), file=results)
@@ -178,3 +183,4 @@ def run(trainset_path, testset_path, verbose,
             print('PREC: {}'.format(precision), file=results)
             print('RECALL: {}'.format(recall), file=results)
             print('FSCORE: {}'.format(f_score), file=results)
+            print('ACC: {}'.format(accuracy), file=results)

@@ -10,11 +10,13 @@ import re
 import numpy as np
 import requests
 import torch
+from gensim.models import KeyedVectors
 from keras.callbacks import EarlyStopping
 from keras.layers import LSTM, Dense, Embedding, Flatten
 from keras.models import Sequential
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import one_hot
+from sklearn.metrics import accuracy_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
@@ -502,6 +504,7 @@ class EmotionsModel(object):
     def __init__(
             self,
             bnd_file_name,
+            embeddings_file_name=None,
             verbose=False,
             coords_or_labels='coords',
             use_transformer=False,
@@ -516,6 +519,7 @@ class EmotionsModel(object):
         """Constructor.
         Parameters:
             bnd_file_name – corpus file in BND format
+            embeddings_file_name - path to Word2Vec embeddings
             verbose – verbosity (default False)
             coords_or_labels - train `coords` (default) or `labels`?
             use_transformer - should we start with pretrained Transformer (HerBERT) (default False)?
@@ -528,6 +532,8 @@ class EmotionsModel(object):
             dense_layers - number of dense layers
             early_stopping - use early stopping
         """
+        self.use_cuda = torch.cuda.is_available()
+
         if coords_or_labels not in ['coords', 'labels']:
             raise Exception(
                 "You can train emotions' *coords* or *labels* only")
@@ -540,10 +546,13 @@ class EmotionsModel(object):
         self.max_length = 0
         self.verbose = verbose
         self.emotions = Emotions(aggregation_function=np.max)
+        self.utterances = []
         self.lemmatized_utterances = []
         self.emotion_labels = []
         self.emotion_coords = []
         self.target_labels = None
+
+        self.train_on = train_on
 
         if train_on == 'manners':
             self._gather_data_from_manners(bnd_file_name)
@@ -559,6 +568,7 @@ class EmotionsModel(object):
                 early_stopping=early_stopping)
         else:
             self._train(
+                embeddings=embeddings_file_name,
                 epochs=epochs,
                 dim=dim,
                 dropout=dropout,
@@ -570,11 +580,13 @@ class EmotionsModel(object):
     def _gather_data_from_manners(self, bnd):
         with BNDReader(bnd) as reader:
             for par in reader:
+                words = []
                 lemmas = []
                 postags = []
                 manner = []
                 for row in par:
                     if row['dip'] == 'utt':
+                        words.append(row['word'])
                         lemmas.append(row['lemma'])
                     elif row['dip'] == 'manner':
                         manner.append(row['lemma'])
@@ -583,6 +595,7 @@ class EmotionsModel(object):
                     if len(lemmas) > self.max_length:
                         self.max_length = len(lemmas)
                     self.vocabulary.update(lemmas)
+                    self.utterances.append(words)
                     self.lemmatized_utterances.append(lemmas)
                     emotion_coords = self.emotions.get_coords_from_text(
                         manner, postags=postags)
@@ -593,11 +606,13 @@ class EmotionsModel(object):
     def _gather_data_from_reporting_clauses(self, bnd):
         with BNDReader(bnd) as reader:
             for i, par in enumerate(reader):
+                words = []
                 lemmas = []
                 postags = []
                 rc = []
                 for row in par:
                     if row['dip'] == 'utt':
+                        words.append(row['word'])
                         lemmas.append(row['lemma'])
                     elif row['dip'] != 'utt':
                         rc.append(row['lemma'])
@@ -606,6 +621,7 @@ class EmotionsModel(object):
                     if len(lemmas) > self.max_length:
                         self.max_length = len(lemmas)
                     self.vocabulary.update(lemmas)
+                    self.utterances.append(words)
                     self.lemmatized_utterances.append(lemmas)
                     emotion_coords = self.emotions.get_coords_from_text(
                         rc, postags=postags)
@@ -633,9 +649,13 @@ class EmotionsModel(object):
         self._prepare_labels()
         output_dim = self.target_labels.shape[1]
 
-        sentences = [
-            " ".join(sentence_lemmas)
-            for sentence_lemmas in self.lemmatized_utterances]
+        sentences = [" ".join(words) for words in self.utterances]
+
+        with open(f"corpora/dataset_{self.train_on}.tsv", "w") as trainset_file:
+            print(f"sentence\tlabel", file=trainset_file)
+            for sentence, label in zip(sentences, self.emotion_labels):
+                print(f"{sentence}\t{label}", file=trainset_file)
+
         train_texts, val_texts, train_labels, val_labels = train_test_split(sentences, self.target_labels, test_size=.2)
 
         self.tokenizer = AutoTokenizer.from_pretrained("allegro/herbert-base-cased")
@@ -667,6 +687,9 @@ class EmotionsModel(object):
 
         self.model = AutoModelForSequenceClassification.from_pretrained("allegro/herbert-base-cased", num_labels=output_dim)
 
+        if self.use_cuda:
+            self.model.cuda()
+
         trainer = Trainer(
             model=self.model,
             args=training_args,
@@ -677,9 +700,9 @@ class EmotionsModel(object):
 
         trainer.train()
 
-
     def _train(
             self,
+            embeddings=None,
             epochs=10,
             dim=100,
             dropout=0.5,
@@ -700,8 +723,25 @@ class EmotionsModel(object):
         X = padded_utterances
         y = self.target_labels
 
-        embedding_dim = dim
         output_dim = y.shape[1]
+
+        if embeddings is None:
+            embedding_dim = dim
+            embedding_layer = Embedding(
+                self.vocab_size,
+                embedding_dim,
+                input_length=self.max_length)
+        else:
+            word2vec_model = KeyedVectors.load_word2vec_format(embeddings, binary=False)
+            embedding_matrix = word2vec_model.wv.syn0
+            print('Shape of embedding matrix: ', embedding_matrix.shape)
+            vocab_size = embedding_matrix.shape[0]
+            embedding_dim = embedding_matrix.shape[1]
+            embedding_layer = Embedding(
+                vocab_size,
+                embedding_dim,
+                weights=[embedding_matrix],
+                trainable=False)
 
         if self.verbose:
             print('Training set size: ', len(self.lemmatized_utterances))
@@ -712,8 +752,7 @@ class EmotionsModel(object):
             print('Max. sentence length:', self.max_length)
 
         self.model = Sequential()
-        self.model.add(Embedding(
-            self.vocab_size, embedding_dim, input_length=self.max_length))
+        self.model.add(embedding_layer)
 
         if lstm_layers >= 2:
             self.model.add(LSTM(
@@ -731,7 +770,10 @@ class EmotionsModel(object):
         if dense_layers >= 2:
             self.model.add(Dense(dim, activation='tanh'))
 
-        self.model.add(Dense(output_dim, activation='tanh'))
+        if self.coords_or_labels == "labels":
+            self.model.add(Dense(output_dim, activation='softmax'))
+        else:
+            self.model.add(Dense(output_dim, activation='tanh'))
 
         if self.verbose:
             print(self.model.summary())
@@ -756,18 +798,37 @@ class EmotionsModel(object):
 
         self.model.fit(X_train, y_train, epochs=epochs, callbacks=callbacks)
 
+        y_pred = self.model.predict(X_test)
+
+        if self.verbose:
+            precision, recall, f_score, support = precision_recall_fscore_support(
+                y_test, y_pred, average='micro')
+            accuracy = accuracy_score(y_test, y_pred)
+            print(f"P={precision}\tR={recall}\tF={f_score}\tA={accuracy}")
+
     def get_coords_from_text(self, text):
         """Predict emotions on text from trained model"""
         if self.use_transformer:
+            input = self.tokenizer.batch_encode_plus(
+                [(text)],
+                padding='longest',
+                add_special_tokens=True,
+                return_tensors='pt')
+            input_ids = input['input_ids']
+            token_type_ids = input['token_type_ids']
+            attention_mask = input['attention_mask']
+            if self.use_cuda:
+                input_ids = input_ids.cuda()
+                token_type_ids = token_type_ids.cuda()
+                attention_mask = attention_mask.cuda()
             output = self.model(
-                **self.tokenizer.batch_encode_plus(
-                    [(text)],
-                    padding='longest',
-                    add_special_tokens=True,
-                    return_tensors='pt'
-                )
-            )
-            prediction = output['logits'].detach().numpy()
+                input_ids=input_ids,
+                token_type_ids=token_type_ids,
+                attention_mask=attention_mask)
+            logits = output['logits'].detach()
+            if self.use_cuda:
+                logits = logits.cpu()
+            prediction = logits.numpy()
         else:
             preprocessed_text = [one_hot(text, self.vocab_size)]
             padded_text = pad_sequences(
