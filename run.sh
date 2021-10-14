@@ -12,9 +12,9 @@ for method in manners reporting_clauses
 do
     for coords_or_labels in coords labels
     do
-        for use_transformers in True False
+        for use_transformer in True False
         do
-            ./experiments.py with "method=${method}" "coords_or_labels=${coords_or_labels}" "use_transformers=${use_transformers}"
+            ./experiments.py with "method=${method}" "coords_or_labels=${coords_or_labels}" "use_transformer=${use_transformer}"
         done
     done
 done
