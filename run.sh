@@ -1,10 +1,20 @@
 #!/bin/bash -ex
 
-for method in mean zero max maxabs
+# for method in mean zero max maxabs
+# do
+#     for wsd_method in none simplified_lesk freq_weighted_lesk idf_weighted_lesk simplified_lesk_with_bootstrapping freq_weighted_lesk_with_bootstrapping idf_weighted_lesk_with_bootstrapping
+#     do
+#         ./experiments.py with "method=${method}" "wsd_method=${wsd_method}"
+#     done
+# done
+
+for method in manners reporting_clauses
 do
-    for wsd_method in none simplified_lesk freq_weighted_lesk idf_weighted_lesk simplified_lesk_with_bootstrapping freq_weighted_lesk_with_bootstrapping idf_weighted_lesk_with_bootstrapping
+    for coords_or_labels in coords labels
     do
-        ./experiments.py with "method=${method}" "wsd_method=${wsd_method}"
+        for use_transformer in True False
+        do
+            ./experiments.py with "method=${method}" "coords_or_labels=${coords_or_labels}" "use_transformer=${use_transformer}"
+        done
     done
 done
-
