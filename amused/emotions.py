@@ -677,7 +677,6 @@ class EmotionsModel(object):
 
         trainer.train()
 
-
     def _train(
             self,
             epochs=10,
