@@ -4,6 +4,6 @@ numpy==1.19.2
 requests==2.26.0
 sacred==0.8.2
 scikit-learn==1.0
-tensorflow==2.6.0
+tensorflow==2.6.1
 morfeusz2==1.99.0
 gensim==4.1.2
