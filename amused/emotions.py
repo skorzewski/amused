@@ -83,7 +83,7 @@ class Emotions(object):
         return [self._lemmatizer.lemmatize(token) for token in tokens]
 
     def _from_csv(self, path):
-        """Read emotion databese from plWordNet-emo CSV file"""
+        """Read emotion database from plWordNet-emo CSV file"""
         with open(path) as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:

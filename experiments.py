@@ -40,6 +40,8 @@ def config():
         model = 'neural'
     elif method in ['mean', 'max', 'maxabs', 'zero']:
         model = 'handmade'
+    elif method in ['random']:
+        model = 'baseline'
 
 
 def maxabs(l):
@@ -66,11 +68,14 @@ def run(trainset_path, testset_path, verbose,
     # results_path = 'new_experiment_results/{}_dl{}_ll{}_e{}_dim{}_do{}_rdo{}.tsv'.format(
     #     method, dense_layers, lstm_layers, epochs,
     #     dim, int(10*dropout), int(10*recurrent_dropout))
-    transformer_str = "_transformer" if use_transformer else ""
-    experiment_name = (
-        f"{method}_{wsd_method}"
-        if model == 'handmade'
-        else f"{method}_{coords_or_labels}{transformer_str}")
+    if model == 'neural':
+        experiment_name = f"{method}_{coords_or_labels}"
+        if use_transformer:
+            experiment_name += "_transformer"
+    elif model == 'handmade':
+        experiment_name = f"{method}_{wsd_method}"
+    else:
+        experiment_name = f"{method}"
     results_path = f"experiment_results/{experiment_name}.tsv"
 
     with open(results_path, 'w') as results:
@@ -127,6 +132,8 @@ def run(trainset_path, testset_path, verbose,
                 elif emotions:
                     sentic_vector = emotions.get_coords_from_text(lemmas)
                     marked_utterance = emotions.mark_text(tokens, lemmas)
+                else:
+                    sentic_vector = list(np.random.rand(4) * 2 - 1)
 
                 sentic_vector_str = '\t'.join(['{:.6}'.format(coord) for coord in sentic_vector])
                 reference_class = row['emo']
