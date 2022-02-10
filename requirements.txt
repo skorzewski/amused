@@ -1,6 +1,6 @@
 scipy==1.7.1
 keras==2.6.0
-numpy==1.19.2
+numpy==1.21.0
 requests==2.26.0
 sacred==0.8.2
 scikit-learn==1.0
